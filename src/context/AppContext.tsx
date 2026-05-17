@@ -85,19 +85,29 @@ const PRE_MADE_PROFILES: UserProfile[] = [
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80',
     college: 'Stanford University',
     role: 'UI/UX Designer',
-    skills: ['Figma', 'React Native', 'Tailwind'],
+    skills: ['Figma', 'React Native', 'Tailwind CSS'],
     techStack: ['React Native', 'Figma', 'CSS'],
     schedule: 'Early Bird',
     commStyle: 'Collaborative & Gentle',
     teamSizePreference: '3-4 members',
     workEnergy: 'Chill & Steady',
-    snack: 'Cold Brew & Croissants ☕',
+    snack: 'Cold Brew & Croissants',
     toxicHabit: 'Refactoring button padding 20 times instead of building the backend',
-    musicVibe: 'Lofi Focus / R&B 🎵',
+    musicVibe: 'Lofi Focus / R&B',
     shipVsPolish: 'Polish to Perfection',
-    tagline: 'Loves sunrise coding sessions and pixel-perfect grids ☀️',
+    tagline: 'Loves sunrise coding sessions and pixel-perfect grids',
     compatibilityScore: 94,
-    archetype: { name: 'The UI Perfectionist', description: 'Dedicated to premium aesthetics.', glowColor: '#FF007F', emoji: '✨', traits: ['Detail-oriented', 'Aesthetic expert'], strengths: ['Figma mastery', 'Microinteractions'] },
+    archetype: { 
+      name: 'The UI Perfectionist', 
+      identity: 'Aesthetic wizard mapping pixels to perfection.',
+      description: 'You believe a product isn\'t finished until the spacing is mathematically perfect and the transitions feel like butter.',
+      glowColor: '#800020', 
+      icon: 'PenTool', 
+      traits: ['Detail-oriented', 'Structured workflow', 'Visually obsessed'], 
+      strengths: ['Figma mastery', 'Smooth micro-interactions', 'Frontend polish'],
+      idealTeammates: ['Backend architects', 'Rapid executors', 'The Pitch Wizard'],
+      weaknesses: ['May spend too much time polishing before MVP is functional.']
+    },
   },
   {
     id: 'alex_chaos',
@@ -111,13 +121,23 @@ const PRE_MADE_PROFILES: UserProfile[] = [
     commStyle: 'Enthusiastic & High Energy',
     teamSizePreference: '3-4 members',
     workEnergy: 'Chaotic Innovation',
-    snack: "Flamin' Hot Cheetos 🔥",
+    snack: "Flamin' Hot Cheetos",
     toxicHabit: 'Adding 3D meshes to the landing page before auth works',
-    musicVibe: 'Synthwave / Phonk ⚡',
+    musicVibe: 'Synthwave / Phonk',
     shipVsPolish: 'Ship Fast',
-    tagline: "3AM is peak productivity. Let's build the future 🚀",
+    tagline: "3AM is peak productivity. Let's build the future",
     compatibilityScore: 88,
-    archetype: { name: 'The Chaos Innovator', description: 'Thrives under pressure.', glowColor: '#A020F0', emoji: '⚡', traits: ['Rapid prototyping', 'Hyper-creative'], strengths: ['Framer Motion', 'High pressure execution'] },
+    archetype: { 
+      name: 'The Chaos Innovator', 
+      identity: 'Idea machine running on adrenaline and caffeine.',
+      description: 'Your codebase is a mess, but your rapid prototypes win hackathons through pure creative innovation.',
+      glowColor: '#800020', 
+      icon: 'Zap', 
+      traits: ['Rapid prototyping', 'Idea-heavy', 'Chaotic workflow'], 
+      strengths: ['0-to-1 building', 'Fuzzy logic concepts', 'Demo magic'],
+      idealTeammates: ['The Silent Debugger', 'The Pitch Wizard'],
+      weaknesses: ['Code readability and documentation are an afterthought.']
+    },
   },
   {
     id: 'elena_db',
@@ -131,13 +151,23 @@ const PRE_MADE_PROFILES: UserProfile[] = [
     commStyle: 'Silent & Structured',
     teamSizePreference: '3-4 members',
     workEnergy: 'Deep Focus & Silos',
-    snack: 'Black Coffee & Almonds ☕',
+    snack: 'Black Coffee & Almonds',
     toxicHabit: 'Writing a custom ORM during a 24h hackathon',
-    musicVibe: 'Techno / Ambient 🎧',
+    musicVibe: 'Techno / Ambient',
     shipVsPolish: 'Healthy Balance',
-    tagline: 'If the schema is clean, the app is clean 🖥️',
+    tagline: 'If the schema is clean, the app is clean',
     compatibilityScore: 91,
-    archetype: { name: 'The Silent Debugger', description: 'Foundation of the team.', glowColor: '#00F0FF', emoji: '🖥️', traits: ['System architect', 'Calm presence'], strengths: ['API scaling', 'Clean code'] },
+    archetype: { 
+      name: 'The Silent Debugger', 
+      identity: 'The unshakeable bedrock of the architecture.',
+      description: 'When everything crashes at 4 AM, you are the one quietly fixing the race condition while everyone else panics.',
+      glowColor: '#800020', 
+      icon: 'Server', 
+      traits: ['Logical systems thinking', 'Calm presence', 'Deep focus'], 
+      strengths: ['API scaling', 'Clean schemas', 'Unbreakable state management'],
+      idealTeammates: ['The UI Perfectionist', 'The Chaos Innovator'],
+      weaknesses: ['Can get stuck over-engineering systems for edge cases.']
+    },
   },
   {
     id: 'marcus_pitch',
@@ -145,19 +175,29 @@ const PRE_MADE_PROFILES: UserProfile[] = [
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
     college: 'Georgia Tech',
     role: 'Pitch Wizard',
-    skills: ['Node.js', 'React', 'Business Strategy'],
-    techStack: ['React', 'Express', 'Figma'],
+    skills: ['Pitching', 'Product Strategy', 'Startup Validation'],
+    techStack: ['Figma', 'Pitching', 'UI/UX'],
     schedule: '24/7 Machine',
     commStyle: 'Direct & Fast',
     teamSizePreference: '5+ members',
     workEnergy: 'High-Speed Sprint',
-    snack: 'Monster Energy & Gummy Bears 🐻',
+    snack: 'Monster Energy & Gummy Bears',
     toxicHabit: "Promising judges 5 AI integrations before we've deployed",
-    musicVibe: 'Hip Hop / Trap 🎤',
+    musicVibe: 'Hip Hop / Trap',
     shipVsPolish: 'Ship Fast',
-    tagline: "We'll code it in 2 hours. Let's make the pitch legendary 🎤",
+    tagline: "We'll code it in 2 hours. Let's make the pitch legendary",
     compatibilityScore: 83,
-    archetype: { name: 'The Pitch Wizard', description: "Convinces anyone this is a $10B startup.", glowColor: '#FFD700', emoji: '🎤', traits: ['Persuasive speaker', 'Hype machine'], strengths: ['Pitch deck', 'Judge interactions'] },
+    archetype: { 
+      name: 'The Pitch Wizard', 
+      identity: 'Natural storyteller transforming code into capital.',
+      description: 'You can convince any judge that a 3-page React app is the next billion-dollar unicorn startup.',
+      glowColor: '#800020', 
+      icon: 'Mic', 
+      traits: ['Charismatic', 'Extroverted communication', 'Hype master'], 
+      strengths: ['Slide structures', 'Feature scoping', 'Judge interactions'],
+      idealTeammates: ['The Sleepless Builder', 'The Chaos Innovator'],
+      weaknesses: ['Might promise features to judges that haven\'t been coded yet.']
+    },
   },
   {
     id: 'sarah_ai',
@@ -171,13 +211,23 @@ const PRE_MADE_PROFILES: UserProfile[] = [
     commStyle: 'Enthusiastic & High Energy',
     teamSizePreference: '3-4 members',
     workEnergy: 'High-Speed Sprint',
-    snack: 'Matcha Latte & Dark Chocolate 🍵',
+    snack: 'Matcha Latte & Dark Chocolate',
     toxicHabit: 'Fine-tuning a model for a task that needed 1 regex',
-    musicVibe: 'Classical Focus 🎹',
+    musicVibe: 'Classical Focus',
     shipVsPolish: 'Healthy Balance',
-    tagline: "Mistral, Gemini, Llama — let's chain agents and ship 🤖",
+    tagline: "Mistral, Gemini, Llama — let's chain agents and ship",
     compatibilityScore: 92,
-    archetype: { name: 'The Sleepless Builder', description: 'Endless energy, writes code at thought-speed.', glowColor: '#FF5722', emoji: '☕', traits: ['Relentless', 'Versatile'], strengths: ['AI integrations', 'End-to-end coding'] },
+    archetype: { 
+      name: 'The Sleepless Builder', 
+      identity: 'Endless energy. Ships ideas faster than most teams can discuss them.',
+      description: 'You are an execution machine. You stitch APIs, build the logic, and deploy before the sun comes up.',
+      glowColor: '#800020', 
+      icon: 'Coffee', 
+      traits: ['Rapid executor', 'Versatile developer', 'High output under pressure'], 
+      strengths: ['MVP building', 'API integration', 'Rapid deployment'],
+      idealTeammates: ['Structured planners', 'The UI Perfectionist', 'Organized collaborators'],
+      weaknesses: ['May move too quickly for highly detail-oriented teammates.']
+    },
   },
 ];
 
@@ -240,8 +290,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     { question: 'A clean DB schema is better than a flashy onboarding screen.', agree: 93, disagree: 201 },
   ]);
   const [wouldYouRathers, setWouldYouRathers] = useState<WouldYouRather[]>([
-    { q1: 'Ship buggy code on time 🚀', q2: 'Miss deadline but fix all bugs 🐛', opt1Votes: 182, opt2Votes: 94 },
-    { q1: 'Pitch a static prototype 🎤', q2: 'Debug a race condition for 6h 🖥️', opt1Votes: 120, opt2Votes: 156 },
+    { q1: 'Ship buggy code on time', q2: 'Miss deadline but fix all bugs', opt1Votes: 182, opt2Votes: 94 },
+    { q1: 'Pitch a static prototype', q2: 'Debug a race condition for 6h', opt1Votes: 120, opt2Votes: 156 },
   ]);
 
   const sprintIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -251,15 +301,124 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // ── Archetype calculator ──────────────────────────────────────────────────
 
   const calcArchetype = (data: OnboardingData) => {
-    if (data.shipVsPolish === 'Polish to Perfection')
-      return { name: 'The UI Perfectionist', description: 'Dedicated to gorgeous visual style and storytelling UX.', glowColor: '#FF007F', emoji: '✨', traits: ['Detail-oriented', 'Aesthetic wizard', 'Visually obsessed'], strengths: ['Figma assets', 'Smooth transitions', 'Frontend polish'] };
-    if (data.preferredRole === 'Backend Developer')
-      return { name: 'The Silent Debugger', description: 'The anchor. Quietly designs unbreakable structures.', glowColor: '#00F0FF', emoji: '🖥️', traits: ['Logical thinker', 'Architecture expert', 'Calm under fire'], strengths: ['API routing', 'DB normalization', 'State management'] };
-    if (data.preferredRole === 'Pitch Wizard')
-      return { name: 'The Pitch Wizard', description: 'Natural storyteller. Transforms hacks into unicorn ideas.', glowColor: '#FFD700', emoji: '🎤', traits: ['Charismatic', 'Hype master', 'Persuasive'], strengths: ['Slide structures', 'Feature scoping', 'Judge interactions'] };
-    if (data.shipVsPolish === 'Ship Fast' || data.workEnergy === 'Chaotic Innovation')
-      return { name: 'The Chaos Innovator', description: 'Thrives under pressure. Master of high-speed mockups.', glowColor: '#A020F0', emoji: '⚡', traits: ['Fast prototype specialist', 'Pivot master', 'Infinite ideas'], strengths: ['Framer Motion', 'Fuzzy logic concepts', 'Demo polish'] };
-    return { name: 'The Sleepless Builder', description: 'Endless energy. Writes code at the speed of thought.', glowColor: '#FF5722', emoji: '☕', traits: ['Relentless', 'Versatile developer', 'High output'], strengths: ['Rapid deployments', 'API stitching', 'End-to-end coding'] };
+    let scores = {
+      sleeplessBuilder: 0,
+      uiPerfectionist: 0,
+      pitchWizard: 0,
+      silentDebugger: 0,
+      chaosInnovator: 0,
+    };
+
+    // Evaluate Role & Skills
+    if (data.preferredRole === 'Backend Developer' || data.preferredRole === 'Fullstack Developer') {
+      scores.sleeplessBuilder += 2;
+      scores.silentDebugger += 3;
+    }
+    if (data.preferredRole === 'UI/UX Designer' || data.preferredRole === 'Frontend Developer') {
+      scores.uiPerfectionist += 4;
+    }
+    if (data.preferredRole === 'Product Manager' || data.preferredRole === 'Pitch Wizard') {
+      scores.pitchWizard += 5;
+    }
+    if (data.techStack.some(s => ['React', 'Next.js', 'Framer', 'Tailwind CSS'].includes(s))) {
+      scores.uiPerfectionist += 2;
+      scores.chaosInnovator += 1;
+    }
+    if (data.techStack.some(s => ['Docker', 'Go', 'Rust', 'PostgreSQL', 'Kubernetes'].includes(s))) {
+      scores.silentDebugger += 2;
+    }
+    if (data.techStack.some(s => ['OpenAI APIs', 'TensorFlow', 'PyTorch', 'LangChain'].includes(s))) {
+      scores.sleeplessBuilder += 2;
+      scores.chaosInnovator += 2;
+    }
+
+    // Evaluate Schedule & Work Energy
+    if (data.schedule === 'Late Night' || data.schedule === '24/7 Machine') {
+      scores.sleeplessBuilder += 3;
+      scores.chaosInnovator += 2;
+    }
+    if (data.workEnergy === 'Deep Focus & Silos' || data.commStyle === 'Silent & Structured') {
+      scores.silentDebugger += 4;
+    }
+    if (data.workEnergy === 'Chaotic Innovation' || data.commStyle === 'Enthusiastic & High Energy') {
+      scores.chaosInnovator += 4;
+      scores.pitchWizard += 2;
+    }
+    
+    // Evaluate Shipping Preference
+    if (data.shipVsPolish === 'Ship Fast') {
+      scores.sleeplessBuilder += 2;
+      scores.chaosInnovator += 3;
+    } else if (data.shipVsPolish === 'Polish to Perfection') {
+      scores.uiPerfectionist += 4;
+    }
+
+    // Determine highest score
+    const highestScore = Object.keys(scores).reduce((a, b) => scores[a as keyof typeof scores] > scores[b as keyof typeof scores] ? a : b) as keyof typeof scores;
+
+    switch (highestScore) {
+      case 'uiPerfectionist':
+        return {
+          name: 'The UI Perfectionist',
+          identity: 'Aesthetic wizard mapping pixels to perfection.',
+          description: 'You believe a product isn\'t finished until the spacing is mathematically perfect and the transitions feel like butter.',
+          glowColor: '#800020',
+          icon: 'PenTool',
+          traits: ['Detail-oriented', 'Structured workflow', 'Visually obsessed'],
+          strengths: ['Figma mastery', 'Smooth micro-interactions', 'Frontend polish'],
+          idealTeammates: ['Backend architects', 'Rapid executors', 'The Pitch Wizard'],
+          weaknesses: ['May spend too much time polishing before MVP is functional.'],
+        };
+      case 'pitchWizard':
+        return {
+          name: 'The Pitch Wizard',
+          identity: 'Natural storyteller transforming code into capital.',
+          description: 'You can convince any judge that a 3-page React app is the next billion-dollar unicorn startup.',
+          glowColor: '#800020',
+          icon: 'Mic',
+          traits: ['Charismatic', 'Extroverted communication', 'Hype master'],
+          strengths: ['Slide structures', 'Feature scoping', 'Judge interactions'],
+          idealTeammates: ['The Sleepless Builder', 'The Chaos Innovator'],
+          weaknesses: ['Might promise features to judges that haven\'t been coded yet.'],
+        };
+      case 'silentDebugger':
+        return {
+          name: 'The Silent Debugger',
+          identity: 'The unshakeable bedrock of the architecture.',
+          description: 'When everything crashes at 4 AM, you are the one quietly fixing the race condition while everyone else panics.',
+          glowColor: '#800020',
+          icon: 'Server',
+          traits: ['Logical systems thinking', 'Calm presence', 'Deep focus'],
+          strengths: ['API scaling', 'Clean schemas', 'Unbreakable state management'],
+          idealTeammates: ['The UI Perfectionist', 'The Chaos Innovator'],
+          weaknesses: ['Can get stuck over-engineering systems for edge cases.'],
+        };
+      case 'chaosInnovator':
+        return {
+          name: 'The Chaos Innovator',
+          identity: 'Idea machine running on adrenaline and caffeine.',
+          description: 'Your codebase is a mess, but your rapid prototypes win hackathons through pure creative innovation.',
+          glowColor: '#800020',
+          icon: 'Zap',
+          traits: ['Rapid prototyping', 'Idea-heavy', 'Chaotic workflow'],
+          strengths: ['0-to-1 building', 'Fuzzy logic concepts', 'Demo magic'],
+          idealTeammates: ['The Silent Debugger', 'The Pitch Wizard'],
+          weaknesses: ['Code readability and documentation are an afterthought.'],
+        };
+      case 'sleeplessBuilder':
+      default:
+        return {
+          name: 'The Sleepless Builder',
+          identity: 'Endless energy. Ships ideas faster than most teams can discuss them.',
+          description: 'You are an execution machine. You stitch APIs, build the logic, and deploy before the sun comes up.',
+          glowColor: '#800020',
+          icon: 'Coffee',
+          traits: ['Rapid executor', 'Versatile developer', 'High output under pressure'],
+          strengths: ['MVP building', 'API integration', 'Rapid deployment'],
+          idealTeammates: ['Structured planners', 'The UI Perfectionist', 'Organized collaborators'],
+          weaknesses: ['May move too quickly for highly detail-oriented teammates.'],
+        };
+    }
   };
 
   // ── Onboarding ────────────────────────────────────────────────────────────
@@ -288,7 +447,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!userProfile) return [];
     const flags: string[] = [];
     if (userProfile.preferredRole === profile.role && profile.role === 'Pitch Wizard')
-      flags.push('Both love to pitch — only one can present to judges!');
+      flags.push('Both love to pitch — only one can present to judges.');
     if ((userProfile.schedule === 'Early Bird' && profile.schedule === 'Late Night') ||
         (userProfile.schedule === 'Late Night' && profile.schedule === 'Early Bird'))
       flags.push('Opposite schedules — one sleeping while the other peaks.');
@@ -314,14 +473,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       {
         id: 'system_icebreaker',
         senderId: 'system',
-        text: `💡 Synq Icebreaker: You both love ${activeMatch.musicVibe}. How do you stay focused at 3AM?`,
+        text: `Synq Icebreaker: You both love ${activeMatch.musicVibe}. How do you stay focused at 3AM?`,
         timestamp: new Date(),
         isSystem: true,
       },
       {
         id: 'teammate_opener',
         senderId: activeMatch.id,
-        text: `Hey! ${activeMatch.compatibilityScore}% match score is huge 🔥 What track are you leaning towards?`,
+        text: `Hey! ${activeMatch.compatibilityScore}% match score is huge. What track are you leaning towards?`,
         timestamp: new Date(),
       },
     ]);
@@ -335,7 +494,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       chatTimeoutRef.current = setTimeout(() => {
         setIsTeammateTyping(false);
         const reply = text.toLowerCase().includes('sprint')
-          ? "Yes! Let's fire up the Compatibility Sprint 🚀 I want to see how we build together!"
+          ? "Yes! Let's fire up the Compatibility Sprint. I want to see how we build together!"
           : text.toLowerCase().includes('hi') || text.toLowerCase().includes('hey')
             ? `Hey! So excited about our ${activeMatch.compatibilityScore}% match. Down for the 10-min Sprint?`
             : "That's so cool! Let's jump into the Compatibility Sprint and see our dynamic live!";
@@ -355,7 +514,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSprintTimer(600);
     const challenge = SPRINT_CHALLENGES[Math.floor(Math.random() * SPRINT_CHALLENGES.length)];
     setCurrentSprintChallenge(challenge);
-    setSprintChatNotes([{ id: 'sprint_sys', senderId: 'system', text: '⚡ Sprint Active! Unmute and discuss the challenge below.', timestamp: new Date(), isSystem: true }]);
+    setSprintChatNotes([{ id: 'sprint_sys', senderId: 'system', text: 'Sprint Active! Unmute and discuss the challenge below.', timestamp: new Date(), isSystem: true }]);
 
     if (sprintIntervalRef.current) clearInterval(sprintIntervalRef.current);
     sprintIntervalRef.current = setInterval(() => {
@@ -518,3 +677,4 @@ export const useApp = () => {
 
 // Export goToDiscover helper so ArchetypeScreen can call it
 export { AppContext };
+

@@ -37,15 +37,15 @@ const SprintStack   = createStackNavigator();
 
 const SynqTheme = {
   ...DefaultTheme,
-  dark: true,
+  dark: false,
   colors: {
     ...DefaultTheme.colors,
-    background: '#06050C',
-    card: '#0C0A1A',
-    text: '#FFFFFF',
-    border: 'rgba(255,255,255,0.05)',
-    primary: '#00F0FF',
-    notification: '#8A2BE2',
+    background: '#F9F6F0',
+    card: '#FFFFFF',
+    text: '#2C2C2C',
+    border: '#E0E0E0',
+    primary: '#800020',
+    notification: '#D03B5B',
   },
 };
 
@@ -92,8 +92,8 @@ function MainTabs() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: '#00F0FF',
-        tabBarInactiveTintColor: '#3D3C52',
+        tabBarActiveTintColor: '#800020',
+        tabBarInactiveTintColor: '#767676',
         tabBarLabelStyle: styles.tabLabel,
         tabBarIcon: ({ color, focused }) => {
           const s = focused ? 22 : 20;
@@ -155,9 +155,10 @@ export const AppNavigator: React.FC = () => (
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: '#0C0A1A',
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
+    borderTopColor: '#E0E0E0',
+    borderStyle: 'dotted',
     paddingBottom: Platform.OS === 'ios' ? 16 : 8,
     paddingTop: 8,
     height: Platform.OS === 'ios' ? 82 : 62,
@@ -168,5 +169,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.3,
     marginTop: 2,
+    fontFamily: 'serif',
   },
 });

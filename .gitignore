@@ -77,3 +77,6 @@ Thumbs.db
 # --- EAS CLI & Expo Cloud Build Artifacts ---
 .eas/
 eas-build-pre-install.sh
+
+AGENTS.md
+CLAUDE.md

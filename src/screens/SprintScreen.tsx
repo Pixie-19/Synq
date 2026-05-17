@@ -1,10 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, Image, Animated, TextInput, TouchableOpacity, ScrollView, Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Mic, MicOff, Send, Clock, BookOpen, PhoneOff, Award, Sparkles } from 'lucide-react-native';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { useApp } from '../context/AppContext';
-import { GlassCard } from '../components/GlassCard';
 
 type Props = StackScreenProps<any, 'SprintRoom'>;
 
@@ -43,7 +41,6 @@ export const SprintScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#06050C', '#0E0922', '#06050C']} style={StyleSheet.absoluteFillObject} />
 
       <View style={styles.header}>
         <View style={styles.roomStatus}>
@@ -51,7 +48,7 @@ export const SprintScreen: React.FC<Props> = ({ navigation }) => {
           <Text style={styles.roomTitle}>LIVE COMPATIBILITY SPRINT</Text>
         </View>
         <View style={styles.timerBadge}>
-          <Clock color="#00F0FF" size={16} style={{ marginRight: 6 }} />
+          <Clock color="#800020" size={16} style={{ marginRight: 6 }} />
           <Text style={styles.timerText}>{formatTime(sprintTimer)}</Text>
         </View>
       </View>
@@ -67,8 +64,8 @@ export const SprintScreen: React.FC<Props> = ({ navigation }) => {
           </View>
           <View style={styles.vsLine}><Text style={styles.vsText}>×</Text></View>
           <View style={styles.voiceUser}>
-            <Animated.View style={[styles.pulseRing, { opacity: isTeammateSpeaking ? 0.6 : 0, transform: [{ scale: pulseAnim }], backgroundColor: activeMatch.archetype.glowColor }]} />
-            <View style={[styles.avatarOutline, { borderColor: isTeammateSpeaking ? activeMatch.archetype.glowColor : 'rgba(255,255,255,0.08)' }]}>
+            <Animated.View style={[styles.pulseRing, { opacity: isTeammateSpeaking ? 0.3 : 0, transform: [{ scale: pulseAnim }], backgroundColor: '#800020' }]} />
+            <View style={[styles.avatarOutline, { borderColor: isTeammateSpeaking ? '#800020' : '#E0E0E0' }]}>
               <Image source={{ uri: activeMatch.avatar }} style={styles.avatarImg} />
             </View>
             <Text style={styles.avatarName}>{activeMatch.name.split(' ')[0]} {isTeammateSpeaking ? '(Speaking)' : '(Listening)'}</Text>
@@ -76,9 +73,9 @@ export const SprintScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         {/* Sprint challenge */}
-        <GlassCard style={styles.challengeCard} borderColor="rgba(0,240,255,0.15)">
+        <View style={styles.challengeCard}>
           <View style={styles.challengeHeader}>
-            <BookOpen color="#00F0FF" size={18} style={{ marginRight: 8 }} />
+            <BookOpen color="#800020" size={18} style={{ marginRight: 8 }} />
             <Text style={styles.challengeHeaderTitle}>AI SPRINT CHALLENGE</Text>
           </View>
           <Text style={styles.challengeTitle}>{currentSprintChallenge.title}</Text>
@@ -91,11 +88,11 @@ export const SprintScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.pointText}>{pt}</Text>
             </View>
           ))}
-        </GlassCard>
+        </View>
 
         {/* Notes whiteboard */}
         <Text style={styles.sectionTitle}>Shared Ideation Workspace</Text>
-        <GlassCard style={styles.notesPanel}>
+        <View style={styles.notesPanel}>
           <ScrollView ref={scrollRef} style={{ maxHeight: 180 }} contentContainerStyle={{ padding: 12 }} nestedScrollEnabled>
             {sprintChatNotes.map(note => note.isSystem ? (
               <View key={note.id} style={styles.sysNote}><Text style={styles.sysNoteText}>{note.text}</Text></View>
@@ -107,25 +104,25 @@ export const SprintScreen: React.FC<Props> = ({ navigation }) => {
             ))}
           </ScrollView>
           <View style={styles.notePostWrapper}>
-            <TextInput placeholder="Post a concept..." placeholderTextColor="#636275" style={styles.noteInput} value={inputVal} onChangeText={setInputVal} onSubmitEditing={handlePostNote} />
-            <TouchableOpacity style={styles.postBtn} onPress={handlePostNote}><Send color="#00F0FF" size={16} /></TouchableOpacity>
+            <TextInput placeholder="Post a concept..." placeholderTextColor="#767676" style={styles.noteInput} value={inputVal} onChangeText={setInputVal} onSubmitEditing={handlePostNote} />
+            <TouchableOpacity style={styles.postBtn} onPress={handlePostNote}><Send color="#800020" size={16} /></TouchableOpacity>
           </View>
-        </GlassCard>
+        </View>
       </ScrollView>
 
       {/* Controls */}
       <View style={styles.controlsFooter}>
         <TouchableOpacity style={[styles.actionRound, voiceMuted && styles.actionRoundMuted]} onPress={() => setVoiceMuted(!voiceMuted)}>
-          {voiceMuted ? <MicOff color="#FFF" size={20} /> : <Mic color="#FFF" size={20} />}
+          {voiceMuted ? <MicOff color="#D03B5B" size={20} /> : <Mic color="#800020" size={20} />}
         </TouchableOpacity>
         <TouchableOpacity style={styles.finishSprintBtn} onPress={handleEnd}>
-          <LinearGradient colors={['#FF4500','#FF0055']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.finishSprintGrad}>
-            <Award color="#FFF" size={18} style={{ marginRight: 6 }} />
+          <View style={styles.finishSprintGrad}>
+            <Award color="#FFFFFF" size={18} style={{ marginRight: 6 }} />
             <Text style={styles.finishSprintText}>Finish Sprint →</Text>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.actionRound, styles.actionRoundLeave]} onPress={handleEnd}>
-          <PhoneOff color="#FFF" size={20} />
+          <PhoneOff color="#D03B5B" size={20} />
         </TouchableOpacity>
       </View>
     </View>
@@ -133,50 +130,50 @@ export const SprintScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#06050C', paddingTop: Platform.OS === 'ios' ? 50 : 20 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
+  container: { flex: 1, backgroundColor: '#F9F6F0', paddingTop: Platform.OS === 'ios' ? 50 : 20 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E0E0E0', borderStyle: 'dotted' },
   roomStatus: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF0055' },
-  roomTitle: { color: '#FFF', fontSize: 12, fontWeight: '800', letterSpacing: 1 },
-  timerBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,240,255,0.06)', borderWidth: 1, borderColor: 'rgba(0,240,255,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  timerText: { color: '#00F0FF', fontSize: 13, fontWeight: '800', fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace' },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#D03B5B' },
+  roomTitle: { color: '#800020', fontSize: 12, fontWeight: '800', letterSpacing: 1 },
+  timerBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#800020', borderStyle: 'dotted', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  timerText: { color: '#800020', fontSize: 13, fontWeight: '800', fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace' },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 110 },
   voicePanel: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginVertical: 24, height: 120 },
   voiceUser: { alignItems: 'center', width: 110, position: 'relative' },
   pulseRing: { position: 'absolute', width: 88, height: 88, borderRadius: 44, top: 0 },
-  avatarOutline: { width: 80, height: 80, borderRadius: 40, borderWidth: 2, borderColor: 'rgba(255,255,255,0.08)', padding: 3, backgroundColor: '#06050C', overflow: 'hidden' },
-  mutedOutline: { borderColor: '#FF0055' },
+  avatarOutline: { width: 80, height: 80, borderRadius: 40, borderWidth: 2, borderColor: '#E0E0E0', borderStyle: 'dotted', padding: 3, backgroundColor: '#FFFFFF', overflow: 'hidden' },
+  mutedOutline: { borderColor: '#D03B5B', borderStyle: 'solid' },
   avatarImg: { width: '100%', height: '100%', borderRadius: 40 },
-  avatarName: { color: '#8E8D9C', fontSize: 10, fontWeight: '700', marginTop: 10, textAlign: 'center' },
+  avatarName: { color: '#767676', fontSize: 10, fontWeight: '700', marginTop: 10, textAlign: 'center', fontStyle: 'italic' },
   vsLine: { width: 40, alignItems: 'center' },
-  vsText: { color: '#636275', fontSize: 16, fontWeight: '700' },
-  challengeCard: { padding: 20, marginBottom: 24 },
+  vsText: { color: '#2C2C2C', fontSize: 16, fontWeight: '700', fontFamily: 'serif' },
+  challengeCard: { padding: 20, marginBottom: 24, backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted', shadowColor: '#800020', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 5 },
   challengeHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  challengeHeaderTitle: { color: '#00F0FF', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  challengeTitle: { fontSize: 22, fontWeight: '900', color: '#FFF', letterSpacing: -0.5, marginBottom: 6 },
-  challengeDesc: { fontSize: 12, color: '#8E8D9C', lineHeight: 18, fontWeight: '500' },
-  innerDivider: { width: '100%', height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: 14 },
-  secTitle: { color: '#FFF', fontSize: 13, fontWeight: '800', marginBottom: 8 },
+  challengeHeaderTitle: { color: '#800020', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  challengeTitle: { fontSize: 26, fontFamily: 'serif', fontWeight: '900', color: '#800020', letterSpacing: -0.5, marginBottom: 6 },
+  challengeDesc: { fontSize: 13, color: '#767676', lineHeight: 20, fontWeight: '500' },
+  innerDivider: { width: '100%', height: 1, borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted', backgroundColor: 'transparent', marginVertical: 14 },
+  secTitle: { color: '#2C2C2C', fontSize: 13, fontWeight: '800', marginBottom: 8 },
   pointRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 6 },
-  bullet: { color: '#00F0FF', fontSize: 12, marginRight: 8, marginTop: 1 },
-  pointText: { color: '#8E8D9C', fontSize: 12, lineHeight: 16, fontWeight: '500', flex: 1 },
-  sectionTitle: { color: '#FFF', fontSize: 14, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
-  notesPanel: { padding: 0, overflow: 'hidden' },
-  sysNote: { backgroundColor: 'rgba(0,240,255,0.04)', borderWidth: 1, borderColor: 'rgba(0,240,255,0.06)', borderRadius: 8, padding: 8, marginBottom: 8 },
-  sysNoteText: { color: '#00F0FF', fontSize: 10, fontWeight: '700', textAlign: 'center' },
-  noteRow: { flexDirection: 'row', marginBottom: 8, backgroundColor: 'rgba(255,255,255,0.02)', padding: 8, borderRadius: 8 },
-  noteMe:   { borderLeftWidth: 3, borderLeftColor: '#8A2BE2' },
-  noteThem: { borderLeftWidth: 3, borderLeftColor: '#00F0FF' },
-  noteAuthor: { fontWeight: '800', fontSize: 11, color: '#FFF', marginRight: 6 },
-  noteText: { flex: 1, color: '#8E8D9C', fontSize: 12, fontWeight: '500' },
-  notePostWrapper: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', padding: 8 },
-  noteInput: { flex: 1, color: '#FFF', fontSize: 12, fontWeight: '500', paddingHorizontal: 12, height: 38 },
-  postBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,240,255,0.08)', alignItems: 'center', justifyContent: 'center' },
-  controlsFooter: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 90, backgroundColor: '#06050C', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 14 : 0 },
-  actionRound: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#1E1B2C', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
-  actionRoundMuted: { backgroundColor: '#FF0055', borderColor: '#FF0055' },
-  actionRoundLeave: { backgroundColor: '#FF0055', borderColor: '#FF0055' },
-  finishSprintBtn: { flex: 1, marginHorizontal: 16, borderRadius: 100, overflow: 'hidden' },
+  bullet: { color: '#800020', fontSize: 12, marginRight: 8, marginTop: 1 },
+  pointText: { color: '#767676', fontSize: 12, lineHeight: 18, fontWeight: '500', flex: 1 },
+  sectionTitle: { color: '#2C2C2C', fontSize: 14, fontFamily: 'serif', fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
+  notesPanel: { padding: 0, overflow: 'hidden', backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted' },
+  sysNote: { backgroundColor: '#F9F6F0', borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted', borderRadius: 8, padding: 8, marginBottom: 8 },
+  sysNoteText: { color: '#800020', fontSize: 10, fontWeight: '700', textAlign: 'center', fontStyle: 'italic' },
+  noteRow: { flexDirection: 'row', marginBottom: 8, backgroundColor: '#FFFFFF', padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted' },
+  noteMe:   { borderLeftWidth: 3, borderLeftColor: '#800020', borderLeftStyle: 'solid' },
+  noteThem: { borderLeftWidth: 3, borderLeftColor: '#2C2C2C', borderLeftStyle: 'solid' },
+  noteAuthor: { fontWeight: '800', fontSize: 11, color: '#2C2C2C', marginRight: 6 },
+  noteText: { flex: 1, color: '#767676', fontSize: 12, fontWeight: '500' },
+  notePostWrapper: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#E0E0E0', borderStyle: 'dotted', padding: 8, backgroundColor: '#F9F6F0' },
+  noteInput: { flex: 1, color: '#2C2C2C', fontSize: 13, fontWeight: '500', paddingHorizontal: 12, height: 38 },
+  postBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted', alignItems: 'center', justifyContent: 'center' },
+  controlsFooter: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 90, backgroundColor: '#F9F6F0', borderTopWidth: 1, borderTopColor: '#E0E0E0', borderStyle: 'dotted', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 14 : 0 },
+  actionRound: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted' },
+  actionRoundMuted: { borderColor: '#D03B5B', backgroundColor: '#FFF5F5', borderStyle: 'solid' },
+  actionRoundLeave: { borderColor: '#D03B5B', backgroundColor: '#FFF5F5' },
+  finishSprintBtn: { flex: 1, marginHorizontal: 16, borderRadius: 100, overflow: 'hidden', backgroundColor: '#800020', shadowColor: '#800020', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16, elevation: 8 },
   finishSprintGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 48 },
-  finishSprintText: { color: '#FFF', fontWeight: '800', fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5 },
+  finishSprintText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5, fontFamily: 'serif' },
 });

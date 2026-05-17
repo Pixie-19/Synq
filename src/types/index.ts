@@ -20,11 +20,14 @@ export interface UserProfile {
   compatibilityScore: number;
   archetype: {
     name: string;
+    identity: string;
     description: string;
     glowColor: string;
-    emoji: string;
+    icon: string;
     traits: string[];
     strengths: string[];
+    idealTeammates: string[];
+    weaknesses: string[];
   };
 }
 

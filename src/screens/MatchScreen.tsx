@@ -1,11 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, Image, Animated, TouchableOpacity } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Sparkles, MessageSquare, Zap } from 'lucide-react-native';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { useApp } from '../context/AppContext';
-import { Confetti } from '../components/Confetti';
-import { GlassCard } from '../components/GlassCard';
 
 type Props = StackScreenProps<any, 'Match'>;
 
@@ -27,14 +24,10 @@ export const MatchScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#0F061A', '#06050C', '#060A1E']} style={StyleSheet.absoluteFillObject} />
-      <Confetti active={true} />
-
       <Animated.View style={[styles.mainContent, { opacity: opacityAnim, transform: [{ scale: popAnim }] }]}>
-        <View style={styles.glowBackdrop} />
 
         <View style={styles.header}>
-          <Sparkles color="#00F0FF" size={28} />
+          <Sparkles color="#800020" size={28} />
           <Text style={styles.synqText}>It's a Synq!</Text>
         </View>
         <Text style={styles.matchSub}>You and {activeMatch.name} actually click.</Text>
@@ -42,37 +35,37 @@ export const MatchScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.avatarArena}>
           <View style={styles.avatarWrapper}>
             <Image source={{ uri: userAvatar }} style={styles.matchAvatar} />
-            <LinearGradient colors={['#8A2BE2', '#4B0082']} style={styles.avatarLabel}>
+            <View style={styles.avatarLabel}>
               <Text style={styles.avatarLabelText}>You</Text>
-            </LinearGradient>
+            </View>
           </View>
           <View style={styles.matchLink}>
-            <Zap color="#00F0FF" size={24} style={styles.zapIcon} />
-            <View style={styles.glowLinkLine} />
+            <Zap color="#800020" size={24} style={styles.zapIcon} />
+            <View style={styles.dottedLinkLine} />
           </View>
-          <View style={[styles.avatarWrapper, { borderColor: activeMatch.archetype.glowColor }]}>
+          <View style={styles.avatarWrapper}>
             <Image source={{ uri: activeMatch.avatar }} style={styles.matchAvatar} />
-            <LinearGradient colors={[activeMatch.archetype.glowColor, '#1C0E35']} style={styles.avatarLabel}>
+            <View style={styles.avatarLabel}>
               <Text style={styles.avatarLabelText}>{activeMatch.name.split(' ')[0]}</Text>
-            </LinearGradient>
+            </View>
           </View>
         </View>
 
-        <GlassCard style={styles.scoreCard} borderColor="rgba(0,240,255,0.25)">
+        <View style={styles.scoreCard}>
           <Text style={styles.compatibilityLabel}>Compatibility Score</Text>
           <Text style={styles.compatibilityPercent}>{activeMatch.compatibilityScore}%</Text>
           <Text style={styles.compatibilityDetails}>
-            ✓ Similar schedules ({activeMatch.schedule}){'\n'}
-            ✓ Complementary process ({activeMatch.shipVsPolish}){'\n'}
-            ✓ High chemistry potential
+            ✦ Similar schedules ({activeMatch.schedule}){'\n'}
+            ✦ Complementary process ({activeMatch.shipVsPolish}){'\n'}
+            ✦ High chemistry potential
           </Text>
-        </GlassCard>
+        </View>
 
-        <TouchableOpacity style={styles.unlockButton} onPress={() => navigation.navigate('Chat')}>
-          <LinearGradient colors={['#8A2BE2', '#00F0FF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gradientButton}>
+        <TouchableOpacity style={styles.unlockButton} onPress={() => navigation.navigate('Matches', { screen: 'Chat' })}>
+          <View style={styles.solidButton}>
             <MessageSquare color="#FFFFFF" size={20} />
             <Text style={styles.unlockText}>Unlock Chat & Sprint</Text>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -80,25 +73,24 @@ export const MatchScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#06050C' },
-  glowBackdrop: { position: 'absolute', width: 280, height: 280, borderRadius: 140, backgroundColor: '#8A2BE2', opacity: 0.2, shadowColor: '#00F0FF', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 80 },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9F6F0' },
   mainContent: { width: '90%', maxWidth: 400, alignItems: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
-  synqText: { fontSize: 42, fontWeight: '900', color: '#FFF', letterSpacing: -1, textShadowColor: 'rgba(138,43,226,0.6)', textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 15 },
-  matchSub: { fontSize: 14, color: '#8E8D9C', fontWeight: '600', marginBottom: 40 },
-  avatarArena: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 36 },
-  avatarWrapper: { width: 110, height: 110, borderRadius: 55, borderWidth: 3, borderColor: '#8A2BE2', padding: 3, backgroundColor: '#06050C', position: 'relative' },
+  synqText: { fontSize: 48, fontFamily: 'serif', fontWeight: '900', color: '#800020', letterSpacing: -1 },
+  matchSub: { fontSize: 16, color: '#767676', fontStyle: 'italic', fontWeight: '600', marginBottom: 40 },
+  avatarArena: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 40 },
+  avatarWrapper: { width: 110, height: 110, borderRadius: 55, borderWidth: 2, borderColor: '#800020', borderStyle: 'dotted', padding: 4, backgroundColor: '#FFFFFF', position: 'relative' },
   matchAvatar: { width: '100%', height: '100%', borderRadius: 55 },
-  avatarLabel: { position: 'absolute', bottom: -6, left: '10%', right: '10%', paddingVertical: 3, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  avatarLabelText: { color: '#FFF', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  avatarLabel: { position: 'absolute', bottom: -10, left: '15%', right: '15%', paddingVertical: 4, borderRadius: 8, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E0E0E0', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+  avatarLabelText: { color: '#800020', fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
   matchLink: { width: 60, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  zapIcon: { position: 'absolute', zIndex: 2 },
-  glowLinkLine: { width: '100%', height: 3, backgroundColor: '#00F0FF', shadowColor: '#00F0FF', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.9, shadowRadius: 4 },
-  scoreCard: { width: '100%', padding: 24, alignItems: 'center', marginBottom: 40 },
-  compatibilityLabel: { color: '#8E8D9C', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
-  compatibilityPercent: { fontSize: 36, fontWeight: '900', color: '#00F0FF', marginVertical: 6 },
-  compatibilityDetails: { color: '#8E8D9C', fontSize: 12, lineHeight: 18, textAlign: 'center', fontWeight: '500', marginTop: 4 },
-  unlockButton: { width: '100%', borderRadius: 18, overflow: 'hidden' },
-  gradientButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 10 },
-  unlockText: { color: '#FFF', fontWeight: '700', fontSize: 16, letterSpacing: 0.5 },
+  zapIcon: { position: 'absolute', zIndex: 2, backgroundColor: '#F9F6F0', paddingHorizontal: 4 },
+  dottedLinkLine: { width: '100%', height: 1, borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted', backgroundColor: 'transparent' },
+  scoreCard: { width: '100%', padding: 24, alignItems: 'center', marginBottom: 40, backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted', shadowColor: '#800020', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 5 },
+  compatibilityLabel: { color: '#767676', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
+  compatibilityPercent: { fontSize: 42, fontFamily: 'serif', fontWeight: '900', color: '#800020', marginVertical: 8 },
+  compatibilityDetails: { color: '#2C2C2C', fontSize: 13, lineHeight: 22, textAlign: 'center', fontWeight: '500', marginTop: 4 },
+  unlockButton: { width: '100%', borderRadius: 8, overflow: 'hidden', backgroundColor: '#800020', shadowColor: '#800020', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16, elevation: 8 },
+  solidButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 18, gap: 10 },
+  unlockText: { color: '#FFFFFF', fontWeight: '800', fontSize: 16, letterSpacing: 0.5, fontFamily: 'serif' },
 });

@@ -135,11 +135,11 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#06050C', '#0E0B25', '#06050C']} style={StyleSheet.absoluteFillObject} />
-
       {/* Brand header */}
       <View style={styles.brandSection}>
-        <View style={styles.logoGlow} />
+        <View style={styles.logoCircle}>
+          <Text style={styles.logoText}>S</Text>
+        </View>
         <Text style={styles.brandName}>Synq</Text>
         <Text style={styles.brandTagline}>Build with people who{'\n'}actually click.</Text>
       </View>
@@ -148,7 +148,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.card}>
         {loading ? (
           <View style={styles.loadingArea}>
-            <ActivityIndicator size="large" color="#00F0FF" />
+            <ActivityIndicator size="large" color="#800020" />
             <Text style={styles.loadingText}>Syncing Credentials...</Text>
           </View>
         ) : (
@@ -169,14 +169,14 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
 
             {mode === 'home' ? (
               <TouchableOpacity style={styles.emailBtn} onPress={showEmail}>
-                <Mail color="#8E8D9C" size={18} style={{ marginRight: 10 }} />
+                <Mail color="#800020" size={18} style={{ marginRight: 10 }} />
                 <Text style={styles.emailBtnText}>Continue with Email</Text>
               </TouchableOpacity>
             ) : (
               <Animated.View style={{ opacity: slideAnim, transform: [{ translateY: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                 <TextInput
                   placeholder="your@email.com"
-                  placeholderTextColor="#636275"
+                  placeholderTextColor="#767676"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   value={email}
@@ -185,7 +185,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
                 />
                 <TextInput
                   placeholder="password"
-                  placeholderTextColor="#636275"
+                  placeholderTextColor="#767676"
                   secureTextEntry
                   autoCapitalize="none"
                   value={password}
@@ -193,17 +193,17 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
                   style={[styles.emailInput, { marginBottom: 16 }]}
                 />
                 <TouchableOpacity style={styles.submitEmailBtn} onPress={handleEmailSignIn}>
-                  <LinearGradient colors={['#8A2BE2', '#00F0FF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitGrad}>
-                    <LogIn color="#FFF" size={18} style={{ marginRight: 8 }} />
+                  <View style={styles.submitGrad}>
+                    <LogIn color="#FFFFFF" size={18} style={{ marginRight: 8 }} />
                     <Text style={styles.submitText}>Sign In / Create Account</Text>
-                  </LinearGradient>
+                  </View>
                 </TouchableOpacity>
               </Animated.View>
             )}
 
             {/* Guest entry */}
             <TouchableOpacity style={styles.guestBtn} onPress={handleGuest}>
-              <Sparkles color="#636275" size={14} style={{ marginRight: 6 }} />
+              <Sparkles color="#767676" size={14} style={{ marginRight: 6 }} />
               <Text style={styles.guestText}>Continue as Guest</Text>
             </TouchableOpacity>
           </>
@@ -214,27 +214,28 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#06050C', paddingHorizontal: 24 },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9F6F0', paddingHorizontal: 24 },
   brandSection: { alignItems: 'center', marginBottom: 48, position: 'relative' },
-  logoGlow: { position: 'absolute', width: 100, height: 100, borderRadius: 50, backgroundColor: '#8A2BE2', opacity: 0.25, shadowColor: '#00F0FF', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 40 },
-  brandName: { fontSize: 56, fontWeight: '900', color: '#FFFFFF', letterSpacing: -1 },
-  brandTagline: { fontSize: 15, color: '#8E8D9C', textAlign: 'center', lineHeight: 22, marginTop: 8, fontWeight: '500' },
-  card: { width: '100%', backgroundColor: 'rgba(20,18,38,0.7)', borderRadius: 28, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.08)', padding: 28 },
+  logoCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#800020', borderStyle: 'dotted', alignItems: 'center', justifyContent: 'center', marginBottom: 16, shadowColor: '#800020', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 },
+  logoText: { fontSize: 36, fontFamily: 'serif', color: '#800020', fontWeight: '800' },
+  brandName: { fontSize: 50, fontFamily: 'serif', fontWeight: '900', color: '#800020', letterSpacing: -1 },
+  brandTagline: { fontSize: 18, color: '#2C2C2C', fontStyle: 'italic', textAlign: 'center', lineHeight: 26, marginTop: 8, fontWeight: '600' },
+  card: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted', padding: 28, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 5 },
   loadingArea: { alignItems: 'center', paddingVertical: 20 },
-  loadingText: { color: '#00F0FF', marginTop: 14, fontWeight: '700', fontSize: 14 },
-  googleBtn: { borderRadius: 16, overflow: 'hidden', backgroundColor: '#FFFFFF', marginBottom: 20 },
+  loadingText: { color: '#800020', marginTop: 14, fontWeight: '700', fontSize: 14, fontFamily: 'serif' },
+  googleBtn: { borderRadius: 8, overflow: 'hidden', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E0E0E0', marginBottom: 20 },
   googleBtnInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 14 },
   googleIcon: { fontSize: 18, fontWeight: '900', color: '#4285F4', marginRight: 10 },
-  googleText: { fontSize: 15, fontWeight: '700', color: '#1A1A1A' },
+  googleText: { fontSize: 15, fontWeight: '700', color: '#2C2C2C' },
   dividerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.08)' },
-  dividerText: { color: '#636275', fontSize: 12, fontWeight: '600', marginHorizontal: 12 },
-  emailBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 16, padding: 14, marginBottom: 16 },
-  emailBtnText: { color: '#8E8D9C', fontWeight: '600', fontSize: 15 },
-  emailInput: { backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 14, color: '#FFF', fontSize: 14, marginBottom: 12 },
-  submitEmailBtn: { borderRadius: 14, overflow: 'hidden', marginBottom: 16 },
-  submitGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 14 },
-  submitText: { color: '#FFF', fontWeight: '700', fontSize: 14 },
+  dividerLine: { flex: 1, height: 1, borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted', backgroundColor: 'transparent' },
+  dividerText: { color: '#767676', fontSize: 12, fontWeight: '600', marginHorizontal: 12, fontStyle: 'italic' },
+  emailBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#800020', borderRadius: 8, padding: 14, marginBottom: 16 },
+  emailBtnText: { color: '#800020', fontWeight: '700', fontSize: 15 },
+  emailInput: { backgroundColor: '#F9F6F0', borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8, padding: 14, color: '#2C2C2C', fontSize: 15, marginBottom: 12 },
+  submitEmailBtn: { borderRadius: 8, overflow: 'hidden', marginBottom: 16, backgroundColor: '#800020' },
+  submitGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 16 },
+  submitText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15, fontFamily: 'serif', letterSpacing: 0.5 },
   guestBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
-  guestText: { color: '#636275', fontSize: 13, fontWeight: '600' },
+  guestText: { color: '#767676', fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' },
 });

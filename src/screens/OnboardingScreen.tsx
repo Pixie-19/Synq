@@ -3,8 +3,7 @@ import {
   StyleSheet, Text, View, TouchableOpacity, TextInput,
   ScrollView, Platform, Animated
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowRight, ArrowLeft } from 'lucide-react-native';
+import { ArrowRight, ArrowLeft, Search } from 'lucide-react-native';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { useApp } from '../context/AppContext';
 import { OnboardingData, RoleType } from '../types';
@@ -17,11 +16,25 @@ const COMM_STYLES = ['Direct & Fast','Collaborative & Gentle','Silent & Structur
 const TEAM_SIZES = ['Solo to Duo','3-4 members','5+ members'] as const;
 const WORK_ENERGIES = ['Chill & Steady','High-Speed Sprint','Deep Focus & Silos','Chaotic Innovation'] as const;
 const SHIP_OPTIONS = ['Ship Fast','Polish to Perfection','Healthy Balance'] as const;
-const SKILLS_OPTIONS = ['React','React Native','Node.js','Python','Go','TypeScript','Figma','Flutter','AI/ML','DevOps'];
+
+const SKILLS_CATEGORIES = {
+  'Frontend': ['React', 'Next.js', 'Vue', 'Angular', 'Tailwind CSS', 'TypeScript', 'Three.js', 'WebGL'],
+  'Backend': ['Node.js', 'Express', 'Django', 'Flask', 'FastAPI', 'Spring Boot', 'Go', 'Rust', 'ASP.NET', 'GraphQL'],
+  'Databases': ['MongoDB', 'PostgreSQL', 'MySQL', 'Firebase', 'Redis', 'Supabase', 'SQLite'],
+  'AI / ML': ['TensorFlow', 'PyTorch', 'LangChain', 'OpenAI APIs', 'Mistral AI', 'RAG Systems', 'Vector Databases', 'NLP', 'AI Agents'],
+  'Cloud / DevOps': ['AWS', 'Docker', 'Kubernetes', 'CI/CD', 'Linux', 'Vercel', 'Netlify'],
+  'Blockchain': ['Solidity', 'Ethereum', 'Solana', 'Web3.js', 'Smart Contracts'],
+  'Mobile': ['React Native', 'Android', 'Kotlin', 'Swift', 'Expo', 'Flutter', 'Ionic'],
+  'Design': ['Figma', 'UI/UX', 'Framer', 'Canva', 'Motion Design'],
+  'Product / Business': ['Pitching', 'Product Strategy', 'Startup Validation', 'Growth Hacking'],
+  'Cybersecurity': ['Penetration Testing', 'Ethical Hacking', 'Cryptography'],
+  'Game Dev': ['Unity', 'Unreal Engine', 'Blender', 'Godot']
+};
 
 function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
   return (
     <TouchableOpacity
+      activeOpacity={0.7}
       onPress={onPress}
       style={[styles.chip, selected && styles.chipSelected]}
     >
@@ -38,6 +51,7 @@ export const OnboardingScreen: React.FC<Props> = ({ navigation }) => {
   const [college, setCollege] = useState('');
   const [selectedRole, setSelectedRole] = useState<RoleType | null>(null);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [schedule, setSchedule] = useState<typeof SCHEDULES[number] | null>(null);
   const [commStyle, setCommStyle] = useState<typeof COMM_STYLES[number] | null>(null);
   const [teamSize, setTeamSize] = useState<typeof TEAM_SIZES[number] | null>(null);
@@ -54,7 +68,7 @@ export const OnboardingScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleNext = () => {
     if (step < TOTAL_STEPS - 1) { setStep(s => s + 1); return; }
-    // Final submit
+    
     const data: OnboardingData = {
       name: name || 'Hacker',
       college: college || 'Your University',
@@ -65,13 +79,29 @@ export const OnboardingScreen: React.FC<Props> = ({ navigation }) => {
       commStyle: commStyle || 'Enthusiastic & High Energy',
       teamSizePreference: teamSize || '3-4 members',
       workEnergy: workEnergy || 'High-Speed Sprint',
-      snack: snack || 'Coffee ☕',
+      snack: snack || 'Coffee',
       toxicHabit: toxicHabit || 'Over-engineering everything',
-      musicVibe: musicVibe || 'Lo-fi 🎵',
+      musicVibe: musicVibe || 'Lo-fi',
       shipVsPolish: shipVsPolish || 'Healthy Balance',
     };
     completeOnboarding(data);
     navigation.navigate('Archetype');
+  };
+
+  const renderSkills = () => {
+    const q = searchQuery.toLowerCase();
+    return Object.entries(SKILLS_CATEGORIES).map(([category, skills]) => {
+      const filtered = skills.filter(s => s.toLowerCase().includes(q));
+      if (filtered.length === 0) return null;
+      return (
+        <View key={category} style={{ marginBottom: 24 }}>
+          <Text style={styles.categoryTitle}>{category.toUpperCase()}</Text>
+          <View style={styles.chipRow}>
+            {filtered.map(s => <Chip key={s} label={s} selected={selectedSkills.includes(s)} onPress={() => toggleSkill(s)} />)}
+          </View>
+        </View>
+      );
+    });
   };
 
   const renderStep = () => {
@@ -79,10 +109,10 @@ export const OnboardingScreen: React.FC<Props> = ({ navigation }) => {
       case 0:
         return (
           <>
-            <Text style={styles.stepTitle}>Hey there 👋{'\n'}What's your name?</Text>
-            <TextInput placeholder="Your name" placeholderTextColor="#636275" style={styles.input} value={name} onChangeText={setName} />
-            <TextInput placeholder="Your college / university" placeholderTextColor="#636275" style={[styles.input, { marginTop: 12 }]} value={college} onChangeText={setCollege} />
-            <Text style={[styles.stepTitle, { marginTop: 28 }]}>What's your role? 🛠️</Text>
+            <Text style={styles.stepTitle}>Hey there. What's your name?</Text>
+            <TextInput placeholder="Your name" placeholderTextColor="#767676" style={styles.input} value={name} onChangeText={setName} />
+            <TextInput placeholder="Your college / university" placeholderTextColor="#767676" style={[styles.input, { marginTop: 12 }]} value={college} onChangeText={setCollege} />
+            <Text style={[styles.stepTitle, { marginTop: 28 }]}>What is your role?</Text>
             <View style={styles.chipRow}>
               {ROLES.map(r => <Chip key={r} label={r} selected={selectedRole === r} onPress={() => setSelectedRole(r)} />)}
             </View>
@@ -91,15 +121,26 @@ export const OnboardingScreen: React.FC<Props> = ({ navigation }) => {
       case 1:
         return (
           <>
-            <Text style={styles.stepTitle}>Pick your skills 💻</Text>
-            <View style={styles.chipRow}>
-              {SKILLS_OPTIONS.map(s => <Chip key={s} label={s} selected={selectedSkills.includes(s)} onPress={() => toggleSkill(s)} />)}
+            <Text style={styles.stepTitle}>Pick your skills.</Text>
+            <View style={styles.searchContainer}>
+              <Search color="#800020" size={18} style={styles.searchIcon} />
+              <TextInput 
+                placeholder="Search stacks (e.g. Next.js, Go)" 
+                placeholderTextColor="#767676" 
+                style={styles.searchInput} 
+                value={searchQuery} 
+                onChangeText={setSearchQuery} 
+              />
             </View>
-            <Text style={[styles.stepTitle, { marginTop: 28 }]}>When do you code? 🕐</Text>
+            <ScrollView style={{ height: 320, marginHorizontal: -24, paddingHorizontal: 24 }} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+              {renderSkills()}
+            </ScrollView>
+
+            <Text style={[styles.stepTitle, { marginTop: 28 }]}>When do you prefer to code?</Text>
             <View style={styles.chipRow}>
               {SCHEDULES.map(s => <Chip key={s} label={s} selected={schedule === s} onPress={() => setSchedule(s)} />)}
             </View>
-            <Text style={[styles.stepTitle, { marginTop: 28 }]}>Your team size vibe 👥</Text>
+            <Text style={[styles.stepTitle, { marginTop: 28 }]}>What is your ideal team size?</Text>
             <View style={styles.chipRow}>
               {TEAM_SIZES.map(s => <Chip key={s} label={s} selected={teamSize === s} onPress={() => setTeamSize(s)} />)}
             </View>
@@ -108,15 +149,15 @@ export const OnboardingScreen: React.FC<Props> = ({ navigation }) => {
       case 2:
         return (
           <>
-            <Text style={styles.stepTitle}>Comms style? 💬</Text>
+            <Text style={styles.stepTitle}>Describe your communication style.</Text>
             <View style={styles.chipRow}>
               {COMM_STYLES.map(s => <Chip key={s} label={s} selected={commStyle === s} onPress={() => setCommStyle(s)} />)}
             </View>
-            <Text style={[styles.stepTitle, { marginTop: 28 }]}>Work energy? ⚡</Text>
+            <Text style={[styles.stepTitle, { marginTop: 28 }]}>What is your work energy?</Text>
             <View style={styles.chipRow}>
               {WORK_ENERGIES.map(s => <Chip key={s} label={s} selected={workEnergy === s} onPress={() => setWorkEnergy(s)} />)}
             </View>
-            <Text style={[styles.stepTitle, { marginTop: 28 }]}>Ship vs Polish? 🚀</Text>
+            <Text style={[styles.stepTitle, { marginTop: 28 }]}>Do you prefer shipping or polishing?</Text>
             <View style={styles.chipRow}>
               {SHIP_OPTIONS.map(s => <Chip key={s} label={s} selected={shipVsPolish === s} onPress={() => setShipVsPolish(s)} />)}
             </View>
@@ -125,12 +166,12 @@ export const OnboardingScreen: React.FC<Props> = ({ navigation }) => {
       case 3:
         return (
           <>
-            <Text style={styles.stepTitle}>Fuel your grind 🍕</Text>
-            <TextInput placeholder="Favourite hackathon snack" placeholderTextColor="#636275" style={styles.input} value={snack} onChangeText={setSnack} />
-            <Text style={[styles.stepTitle, { marginTop: 24 }]}>Toxic debugging habit 🐛</Text>
-            <TextInput placeholder="e.g. Console-logging everything" placeholderTextColor="#636275" style={styles.input} value={toxicHabit} onChangeText={setToxicHabit} />
-            <Text style={[styles.stepTitle, { marginTop: 24 }]}>Music vibe while coding 🎵</Text>
-            <TextInput placeholder="e.g. Lofi Hip-Hop" placeholderTextColor="#636275" style={styles.input} value={musicVibe} onChangeText={setMusicVibe} />
+            <Text style={styles.stepTitle}>Fuel your grind.</Text>
+            <TextInput placeholder="Favourite hackathon snack" placeholderTextColor="#767676" style={styles.input} value={snack} onChangeText={setSnack} />
+            <Text style={[styles.stepTitle, { marginTop: 24 }]}>Toxic debugging habit.</Text>
+            <TextInput placeholder="e.g. Console-logging everything" placeholderTextColor="#767676" style={styles.input} value={toxicHabit} onChangeText={setToxicHabit} />
+            <Text style={[styles.stepTitle, { marginTop: 24 }]}>Music vibe while coding.</Text>
+            <TextInput placeholder="e.g. Lofi Hip-Hop" placeholderTextColor="#767676" style={styles.input} value={musicVibe} onChangeText={setMusicVibe} />
           </>
         );
       default: return null;
@@ -139,8 +180,6 @@ export const OnboardingScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#06050C', '#0C0A1A', '#06050C']} style={StyleSheet.absoluteFillObject} />
-
       {/* Progress bar */}
       <View style={styles.progressBarBg}>
         <View style={[styles.progressBarFill, { width: `${((step + 1) / TOTAL_STEPS) * 100}%` }]} />
@@ -155,14 +194,14 @@ export const OnboardingScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.navRow}>
         {step > 0 && (
           <TouchableOpacity style={styles.backBtn} onPress={() => setStep(s => s - 1)}>
-            <ArrowLeft color="#8E8D9C" size={20} />
+            <ArrowLeft color="#800020" size={20} />
           </TouchableOpacity>
         )}
         <TouchableOpacity style={styles.nextBtn} onPress={handleNext}>
-          <LinearGradient colors={['#8A2BE2', '#00F0FF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.nextGrad}>
-            <Text style={styles.nextText}>{step === TOTAL_STEPS - 1 ? 'Generate My Archetype ✨' : 'Next'}</Text>
-            <ArrowRight color="#FFF" size={18} />
-          </LinearGradient>
+          <View style={styles.nextGrad}>
+            <Text style={styles.nextText}>{step === TOTAL_STEPS - 1 ? 'Generate AI Archetype' : 'Next Step'}</Text>
+            <ArrowRight color="#FFFFFF" size={18} />
+          </View>
         </TouchableOpacity>
       </View>
     </View>
@@ -170,21 +209,29 @@ export const OnboardingScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#06050C', paddingTop: Platform.OS === 'ios' ? 56 : 28 },
-  progressBarBg: { marginHorizontal: 24, height: 4, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 2, marginBottom: 6 },
-  progressBarFill: { height: 4, backgroundColor: '#8A2BE2', borderRadius: 2 },
-  progressLabel: { color: '#636275', fontSize: 11, fontWeight: '700', marginHorizontal: 24, marginBottom: 8 },
+  container: { flex: 1, backgroundColor: '#F9F6F0', paddingTop: Platform.OS === 'ios' ? 56 : 28 },
+  progressBarBg: { marginHorizontal: 24, height: 4, backgroundColor: '#E0E0E0', borderRadius: 2, marginBottom: 6 },
+  progressBarFill: { height: 4, backgroundColor: '#800020', borderRadius: 2 },
+  progressLabel: { color: '#767676', fontSize: 11, fontWeight: '700', marginHorizontal: 24, marginBottom: 8, fontStyle: 'italic' },
   scrollContent: { paddingHorizontal: 24, paddingBottom: 120 },
-  stepTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '800', marginTop: 20, marginBottom: 14, letterSpacing: -0.3 },
-  input: { backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 14, color: '#FFF', fontSize: 15 },
+  
+  stepTitle: { color: '#800020', fontSize: 26, fontFamily: 'serif', marginTop: 20, marginBottom: 14, letterSpacing: -0.3, fontWeight: '800' },
+  input: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted', borderRadius: 14, padding: 14, color: '#2C2C2C', fontSize: 15 },
+  
+  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 24, paddingHorizontal: 16, marginBottom: 20, borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted' },
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, paddingVertical: 12, color: '#2C2C2C', fontSize: 15 },
+  
+  categoryTitle: { color: '#767676', fontSize: 12, fontWeight: '800', letterSpacing: 1.5, marginBottom: 12, fontStyle: 'italic' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.03)' },
-  chipSelected: { backgroundColor: 'rgba(138,43,226,0.2)', borderColor: '#8A2BE2' },
-  chipText: { color: '#8E8D9C', fontSize: 13, fontWeight: '600' },
-  chipTextSelected: { color: '#FFFFFF' },
-  navRow: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 34 : 20, paddingTop: 16, backgroundColor: '#06050C', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
-  backBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  nextBtn: { flex: 1, borderRadius: 16, overflow: 'hidden' },
+  chip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 100, borderWidth: 1, borderColor: '#E0E0E0', backgroundColor: '#FFFFFF', borderStyle: 'dotted' },
+  chipSelected: { backgroundColor: '#800020', borderColor: '#800020', shadowColor: '#800020', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4, borderStyle: 'solid' },
+  chipText: { color: '#767676', fontSize: 13, fontWeight: '600' },
+  chipTextSelected: { color: '#FFFFFF', fontWeight: '800' },
+  
+  navRow: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 34 : 20, paddingTop: 16, backgroundColor: '#F9F6F0', borderTopWidth: 1, borderTopColor: '#E0E0E0', borderStyle: 'dotted' },
+  backBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  nextBtn: { flex: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: '#800020', shadowColor: '#800020', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
   nextGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16 },
-  nextText: { color: '#FFF', fontWeight: '800', fontSize: 15 },
+  nextText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15, fontFamily: 'serif' },
 });
