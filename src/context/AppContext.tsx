@@ -1,5 +1,22 @@
 import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
+import { Alert } from 'react-native';
 import { UserProfile, OnboardingData, Message, SprintChallenge, TeamDynamicReport } from '../types';
+import { db, auth } from '../services/firebase';
+import {
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+  collection,
+  onSnapshot,
+  query,
+  where,
+  orderBy,
+  addDoc,
+  serverTimestamp,
+  getDocs
+} from 'firebase/firestore';
+import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,12 +45,15 @@ interface WouldYouRather {
 interface AppContextProps {
   // Auth / onboarding state
   isOnboarded: boolean;
-  userProfile: OnboardingData | null;
+  isAuthenticated: boolean;
+  isAuthLoading: boolean;
+  userProfile: (OnboardingData & Partial<UserProfile>) | null;
   userArchetype: any | null;
   completeOnboarding: (data: OnboardingData) => void;
   finishOnboarding: () => void;
-  updateProfile: (data: Partial<OnboardingData>) => void;
+  updateProfile: (data: Partial<OnboardingData & UserProfile>) => void;
   resetApp: () => void;
+  signOut: () => Promise<void>;
 
   // Discovery
   profiles: UserProfile[];
@@ -51,6 +71,7 @@ interface AppContextProps {
   chatMessages: Message[];
   sendChatMessage: (text: string, senderId?: string) => void;
   isTeammateTyping: boolean;
+  updateTypingStatus?: (isTyping: boolean) => Promise<void>;
 
   // Sprint
   sprintTimer: number;
@@ -63,6 +84,10 @@ interface AppContextProps {
   voiceMuted: boolean;
   setVoiceMuted: (v: boolean) => void;
   isTeammateSpeaking: boolean;
+  isTeammateMuted?: boolean;
+
+  // Seeding
+  seedDemoBuilders?: () => Promise<void>;
 
   // Post-sprint
   teamDynamicReport: TeamDynamicReport | null;
@@ -263,10 +288,13 @@ const SPRINT_CHALLENGES: SprintChallenge[] = [
 const AppContext = createContext<AppContextProps | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isOnboarded, setIsOnboarded] = useState(false);
-  const [userProfile, setUserProfileState] = useState<OnboardingData | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [userProfile, setUserProfileState] = useState<(OnboardingData & Partial<UserProfile>) | null>(null);
   const [userArchetype, setUserArchetype] = useState<any | null>(null);
 
+  const [discoverProfiles, setDiscoverProfiles] = useState<UserProfile[]>([]);
   const [currentProfileIndex, setCurrentProfileIndex] = useState(0);
   const [activeMatch, setActiveMatch] = useState<UserProfile | null>(null);
   const [matchedProfiles, setMatchedProfiles] = useState<UserProfile[]>([]);
@@ -280,6 +308,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [sprintChatNotes, setSprintChatNotes] = useState<Message[]>([]);
   const [voiceMuted, setVoiceMuted] = useState(false);
   const [isTeammateSpeaking, setIsTeammateSpeaking] = useState(false);
+  const [isTeammateMuted, setIsTeammateMuted] = useState(false);
+  const [voiceRoomState, setVoiceRoomState] = useState<any | null>(null);
 
   const [teamDynamicReport, setTeamDynamicReport] = useState<TeamDynamicReport | null>(null);
   const [teamLobbyData, setTeamLobbyData] = useState<TeamLobbyData | null>(null);
@@ -295,11 +325,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ]);
 
   const sprintIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const chatTimeoutRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const speakIntervalRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const normalizeSkillBag = (data: { skills?: string[]; techStack?: string[] }) => {
+    return Array.from(new Set([...(data.skills || []), ...(data.techStack || [])].map(skill => skill.trim()).filter(Boolean)));
+  };
+
+  // ── Compatibility calculator ──────────────────────────────────────────────
+  const calculateScore = (me: OnboardingData | null, them: UserProfile): number => {
+    if (!me) return 85;
+    let score = 70;
+    if (me.preferredRole !== them.role) score += 12;
+    if (me.schedule === them.schedule) score += 10;
+    if (me.shipVsPolish === them.shipVsPolish) score += 5;
+    if (me.workEnergy === them.workEnergy) score += 3;
+    const mySkills = new Set(normalizeSkillBag(me));
+    const theirSkills = normalizeSkillBag(them);
+    const sharedSkills = theirSkills.filter(skill => mySkills.has(skill)).length;
+    score += Math.min(10, sharedSkills * 2);
+
+    const myInterests = new Set(me.projectInterests || []);
+    const theirInterests = new Set(them.projectInterests || []);
+    const sharedInterests = [...theirInterests].filter(interest => myInterests.has(interest)).length;
+    score += Math.min(5, sharedInterests * 2);
+    return Math.min(99, Math.max(50, score));
+  };
 
   // ── Archetype calculator ──────────────────────────────────────────────────
-
   const calcArchetype = (data: OnboardingData) => {
     let scores = {
       sleeplessBuilder: 0,
@@ -309,7 +360,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       chaosInnovator: 0,
     };
 
-    // Evaluate Role & Skills
     if (data.preferredRole === 'Backend Developer' || data.preferredRole === 'Fullstack Developer') {
       scores.sleeplessBuilder += 2;
       scores.silentDebugger += 3;
@@ -320,19 +370,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (data.preferredRole === 'Product Manager' || data.preferredRole === 'Pitch Wizard') {
       scores.pitchWizard += 5;
     }
-    if (data.techStack.some(s => ['React', 'Next.js', 'Framer', 'Tailwind CSS'].includes(s))) {
+    const skillPool = normalizeSkillBag(data);
+
+    if (skillPool.some(s => ['React', 'Next.js', 'Framer', 'Tailwind CSS', 'React Native'].includes(s))) {
       scores.uiPerfectionist += 2;
       scores.chaosInnovator += 1;
     }
-    if (data.techStack.some(s => ['Docker', 'Go', 'Rust', 'PostgreSQL', 'Kubernetes'].includes(s))) {
+    if (skillPool.some(s => ['Docker', 'Go', 'Rust', 'PostgreSQL', 'Kubernetes'].includes(s))) {
       scores.silentDebugger += 2;
     }
-    if (data.techStack.some(s => ['OpenAI APIs', 'TensorFlow', 'PyTorch', 'LangChain'].includes(s))) {
+    if (skillPool.some(s => ['OpenAI APIs', 'TensorFlow', 'PyTorch', 'LangChain', 'AI Agents'].includes(s))) {
       scores.sleeplessBuilder += 2;
       scores.chaosInnovator += 2;
     }
 
-    // Evaluate Schedule & Work Energy
     if (data.schedule === 'Late Night' || data.schedule === '24/7 Machine') {
       scores.sleeplessBuilder += 3;
       scores.chaosInnovator += 2;
@@ -345,7 +396,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       scores.pitchWizard += 2;
     }
     
-    // Evaluate Shipping Preference
     if (data.shipVsPolish === 'Ship Fast') {
       scores.sleeplessBuilder += 2;
       scores.chaosInnovator += 3;
@@ -353,7 +403,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       scores.uiPerfectionist += 4;
     }
 
-    // Determine highest score
     const highestScore = Object.keys(scores).reduce((a, b) => scores[a as keyof typeof scores] > scores[b as keyof typeof scores] ? a : b) as keyof typeof scores;
 
     switch (highestScore) {
@@ -421,125 +470,635 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // ── Onboarding ────────────────────────────────────────────────────────────
+  // ── Auth Observer ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setIsAuthLoading(true);
+      setIsAuthenticated(!!firebaseUser);
+      if (firebaseUser) {
+        try {
+          const userDocRef = doc(db, 'users', firebaseUser.uid);
+          
+          // Use onSnapshot for real-time updates and better offline resilience
+          const unsubscribeProfile = onSnapshot(userDocRef, (userSnap) => {
+            if (userSnap.exists()) {
+              const fullProfile = userSnap.data() as UserProfile;
+              setUserProfileState({
+                name: fullProfile.name,
+                username: fullProfile.username || '',
+                email: fullProfile.email || firebaseUser.email || '',
+                bio: fullProfile.bio || '',
+                college: fullProfile.college,
+                skills: fullProfile.skills || [],
+                preferredRole: fullProfile.role,
+                techStack: fullProfile.techStack || [],
+                schedule: fullProfile.schedule,
+                commStyle: fullProfile.commStyle,
+                teamSizePreference: fullProfile.teamSizePreference,
+                workEnergy: fullProfile.workEnergy,
+                snack: fullProfile.snack,
+                toxicHabit: fullProfile.toxicHabit,
+                musicVibe: fullProfile.musicVibe,
+                shipVsPolish: fullProfile.shipVsPolish,
+                avatar: fullProfile.avatar,
+                github: fullProfile.github || '',
+                twitter: fullProfile.twitter || '',
+                linkedin: fullProfile.linkedin || '',
+                projectInterests: fullProfile.projectInterests || [],
+                onboardingComplete: fullProfile.onboardingComplete ?? true
+              } as any);
+              setUserArchetype(fullProfile.archetype);
+              setIsOnboarded(fullProfile.onboardingComplete ?? true);
+            } else {
+              setIsOnboarded(false);
+            }
+            setIsAuthLoading(false);
+          }, (error) => {
+            console.error("Firestore profile snapshot error:", error);
+            // Don't log out on snapshot error, just log it. 
+            // Local cache will still serve data if available.
+          });
+
+          // Clean up the inner listener if the auth state changes
+          return () => unsubscribeProfile();
+        } catch (error: any) {
+          console.error("Firestore setup error:", error);
+          setIsAuthLoading(false);
+        }
+      } else {
+        setIsOnboarded(false);
+        setUserProfileState(null);
+        setUserArchetype(null);
+        setIsAuthLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // ── Discover Profiles Sync ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!auth.currentUser) {
+      if (isOnboarded) {
+        setDiscoverProfiles(PRE_MADE_PROFILES.map(p => ({
+          ...p,
+          compatibilityScore: calculateScore(userProfile, p)
+        })));
+      } else {
+        setDiscoverProfiles([]);
+      }
+      return;
+    }
+    const myUid = auth.currentUser.uid;
+    const swipesCol = collection(db, 'users', myUid, 'swipes');
+    
+    const unsubSwipes = onSnapshot(swipesCol, (swipesSnap) => {
+      const swipedIds = new Set(swipesSnap.docs.map(d => d.id));
+      const usersCol = collection(db, 'users');
+      
+      const unsubUsers = onSnapshot(usersCol, (usersSnap) => {
+        const loaded: UserProfile[] = [];
+        usersSnap.forEach(uDoc => {
+          const uid = uDoc.id;
+          if (uid !== myUid && !swipedIds.has(uid)) {
+            const uData = uDoc.data() as UserProfile;
+            uData.compatibilityScore = calculateScore(userProfile, uData);
+            loaded.push({ ...uData, id: uid });
+          }
+        });
+        setDiscoverProfiles(loaded);
+      });
+      
+      return () => unsubUsers();
+    });
+
+    return () => unsubSwipes();
+  }, [auth.currentUser, isOnboarded, userProfile]);
+
+  // ── Matched Profiles Sync ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!auth.currentUser) {
+      setMatchedProfiles([]);
+      return;
+    }
+    const myUid = auth.currentUser.uid;
+    const q = query(collection(db, 'matches'), where('users', 'array-contains', myUid));
+    
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const list: UserProfile[] = [];
+      for (const docSnap of snapshot.docs) {
+        const matchData = docSnap.data();
+        const otherUid = matchData.users.find((uid: string) => uid !== myUid);
+        if (otherUid) {
+          const uDoc = await getDoc(doc(db, 'users', otherUid));
+          if (uDoc.exists()) {
+            const uProfile = uDoc.data() as UserProfile;
+            uProfile.compatibilityScore = calculateScore(userProfile, uProfile);
+            list.push({ ...uProfile, id: otherUid });
+          }
+        }
+      }
+      setMatchedProfiles(list);
+    });
+
+    return () => unsubscribe();
+  }, [auth.currentUser, isOnboarded, userProfile]);
+
+  // ── Chat Realtime Sync ─────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!auth.currentUser || !activeMatch) {
+      setChatMessages([]);
+      return;
+    }
+    const myUid = auth.currentUser.uid;
+    const matchId = [myUid, activeMatch.id].sort().join('_');
+    const msgCol = collection(db, 'matches', matchId, 'messages');
+    const q = query(msgCol, orderBy('timestamp', 'asc'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          senderId: data.senderId,
+          text: data.text,
+          timestamp: data.timestamp?.toDate() || new Date(),
+          isSystem: data.isSystem || false
+        };
+      });
+      setChatMessages(msgs);
+    });
+
+    const unsubTyping = onSnapshot(doc(db, 'matches', matchId), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const otherUid = activeMatch.id;
+        setIsTeammateTyping(!!data.typing?.[otherUid]);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      unsubTyping();
+    };
+  }, [activeMatch]);
+
+  // ── Voice Rooms Sync ───────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!auth.currentUser || !activeMatch) {
+      setVoiceRoomState(null);
+      setIsSprintActive(false);
+      return;
+    }
+    const myUid = auth.currentUser.uid;
+    const matchId = [myUid, activeMatch.id].sort().join('_');
+    const roomRef = doc(db, 'voiceRooms', matchId);
+
+    const unsubscribe = onSnapshot(roomRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setVoiceRoomState(data);
+        const otherUid = activeMatch.id;
+        
+        setIsTeammateSpeaking(!!data.members?.[otherUid]?.speaking);
+        setIsTeammateMuted(!!data.members?.[otherUid]?.muted);
+        
+        if (data.active) {
+          setIsSprintActive(true);
+          setCurrentSprintChallenge(data.challenge);
+          
+          // Chat Notes Sync
+          if (data.chatNotes) {
+            setSprintChatNotes(data.chatNotes.map((note: any, idx: number) => ({
+              id: `note_${idx}`,
+              senderId: note.senderId,
+              text: note.text,
+              timestamp: new Date(),
+              isSystem: note.isSystem || false
+            })));
+          }
+        } else {
+          setIsSprintActive(false);
+        }
+      } else {
+        setVoiceRoomState(null);
+        setIsSprintActive(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [activeMatch]);
+
+  // Sync speak ticks (to auto-update our simulated VoIP speak indicator)
+  useEffect(() => {
+    if (isSprintActive && !voiceMuted) {
+      const interval = setInterval(() => {
+        const speaking = Math.random() > 0.6;
+        updateVoiceStatus(voiceMuted, speaking);
+      }, 2000);
+      return () => {
+        clearInterval(interval);
+        updateVoiceStatus(voiceMuted, false);
+      };
+    }
+  }, [isSprintActive, voiceMuted]);
+
+  // Sync timers
+  useEffect(() => {
+    if (isSprintActive && voiceRoomState?.sprintEndAt) {
+      const timerInterval = setInterval(() => {
+        const remaining = Math.max(0, Math.floor((voiceRoomState.sprintEndAt - Date.now()) / 1000));
+        setSprintTimer(remaining);
+        if (remaining <= 0) {
+          clearInterval(timerInterval);
+          endSprint();
+        }
+      }, 1000);
+      return () => clearInterval(timerInterval);
+    }
+  }, [isSprintActive, voiceRoomState]);
+
+  // ── Helper Actions ─────────────────────────────────────────────────────────
+  const seedDemoBuilders = async () => {
+    const batchPromises = PRE_MADE_PROFILES.map(profile => {
+      return setDoc(doc(db, 'users', profile.id), profile);
+    });
+    await Promise.all(batchPromises);
+  };
 
   const completeOnboarding = (data: OnboardingData) => {
     setUserProfileState(data);
     setUserArchetype(calcArchetype(data));
-    // isOnboarded stays false until archetype screen triggers it
   };
 
-  const finishArchetype = () => setIsOnboarded(true);
-  const finishOnboarding = finishArchetype;
+  const finishOnboarding = async () => {
+    if (!userProfile) return;
+    const avatars = [
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80',
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
+      'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=400&q=80'
+    ];
+    const randomAvatar = avatars[Math.floor(Math.random() * avatars.length)];
 
-  const updateProfile = (data: Partial<OnboardingData>) => {
-    setUserProfileState(prev => prev ? { ...prev, ...data } : prev);
-    if (userProfile) setUserArchetype(calcArchetype({ ...userProfile, ...data }));
+    if (!auth.currentUser) {
+      // Local fallback mode onboarding completion
+      setUserProfileState(prev => prev ? { ...prev, avatar: randomAvatar } as any : prev);
+      setIsOnboarded(true);
+      return;
+    }
+    const myUid = auth.currentUser.uid;
+
+    const fullProfile: UserProfile = {
+      id: myUid,
+      name: userProfile.name,
+      username: userProfile.username || userProfile.name.toLowerCase().replace(/\s+/g, ''),
+      email: auth.currentUser?.email || userProfile.email || '',
+      bio: userProfile.bio || `${userProfile.preferredRole} ready to build!`,
+      avatar: randomAvatar,
+      college: userProfile.college,
+      role: userProfile.preferredRole,
+      preferredRole: userProfile.preferredRole,
+      skills: userProfile.skills,
+      techStack: userProfile.techStack?.length ? userProfile.techStack : userProfile.skills,
+      schedule: userProfile.schedule,
+      commStyle: userProfile.commStyle,
+      teamSizePreference: userProfile.teamSizePreference,
+      workEnergy: userProfile.workEnergy,
+      snack: userProfile.snack,
+      toxicHabit: userProfile.toxicHabit,
+      musicVibe: userProfile.musicVibe,
+      shipVsPolish: userProfile.shipVsPolish,
+      tagline: userProfile.bio || `${userProfile.preferredRole} ready to build!`,
+      compatibilityScore: 100,
+      archetype: userArchetype,
+      onboardingComplete: true,
+      github: userProfile.github || '',
+      twitter: userProfile.twitter || '',
+      linkedin: userProfile.linkedin || '',
+      projectInterests: userProfile.projectInterests || [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    // Optimistically update the UI instantly to ensure a fast transition!
+    setIsOnboarded(true);
+
+    // Save profile to database asynchronously in the background
+    setDoc(doc(db, 'users', myUid), fullProfile).catch(err => {
+      console.warn("Error during background profile save, will retry:", err);
+    });
   };
 
-  // Expose finishArchetype via a field the ArchetypeScreen can call
-  // We patch it into context as `goToDiscover`
-  const goToDiscover = finishArchetype;
-
-  // ── Red flags ─────────────────────────────────────────────────────────────
-
-  const redFlagsForProfile = (profile: UserProfile): string[] => {
-    if (!userProfile) return [];
-    const flags: string[] = [];
-    if (userProfile.preferredRole === profile.role && profile.role === 'Pitch Wizard')
-      flags.push('Both love to pitch — only one can present to judges.');
-    if ((userProfile.schedule === 'Early Bird' && profile.schedule === 'Late Night') ||
-        (userProfile.schedule === 'Late Night' && profile.schedule === 'Early Bird'))
-      flags.push('Opposite schedules — one sleeping while the other peaks.');
-    if ((userProfile.shipVsPolish === 'Ship Fast' && profile.shipVsPolish === 'Polish to Perfection') ||
-        (userProfile.shipVsPolish === 'Polish to Perfection' && profile.shipVsPolish === 'Ship Fast'))
-      flags.push('Shipping speed conflict — quick hack vs. pixel-perfect pushes.');
-    return flags;
-  };
-
-  // ── Matches ───────────────────────────────────────────────────────────────
-
-  const advanceProfile = () => setCurrentProfileIndex(i => Math.min(i + 1, PRE_MADE_PROFILES.length - 1));
-
-  const addMatch = (profile: UserProfile) => {
-    setMatchedProfiles(prev => prev.find(p => p.id === profile.id) ? prev : [...prev, profile]);
-  };
-
-  // ── Chat ──────────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!activeMatch) return;
-    setChatMessages([
-      {
-        id: 'system_icebreaker',
-        senderId: 'system',
-        text: `Synq Icebreaker: You both love ${activeMatch.musicVibe}. How do you stay focused at 3AM?`,
-        timestamp: new Date(),
-        isSystem: true,
-      },
-      {
-        id: 'teammate_opener',
-        senderId: activeMatch.id,
-        text: `Hey! ${activeMatch.compatibilityScore}% match score is huge. What track are you leaning towards?`,
-        timestamp: new Date(),
-      },
-    ]);
-  }, [activeMatch]);
-
-  const sendChatMessage = (text: string, senderId = 'me') => {
-    setChatMessages(prev => [...prev, { id: Date.now().toString(), senderId, text, timestamp: new Date() }]);
-    if (senderId === 'me' && activeMatch) {
-      setIsTeammateTyping(true);
-      if (chatTimeoutRef.current) clearTimeout(chatTimeoutRef.current);
-      chatTimeoutRef.current = setTimeout(() => {
-        setIsTeammateTyping(false);
-        const reply = text.toLowerCase().includes('sprint')
-          ? "Yes! Let's fire up the Compatibility Sprint. I want to see how we build together!"
-          : text.toLowerCase().includes('hi') || text.toLowerCase().includes('hey')
-            ? `Hey! So excited about our ${activeMatch.compatibilityScore}% match. Down for the 10-min Sprint?`
-            : "That's so cool! Let's jump into the Compatibility Sprint and see our dynamic live!";
-        setChatMessages(prev => [...prev, { id: Date.now().toString(), senderId: activeMatch.id, text: reply, timestamp: new Date() }]);
-      }, 2000);
+  const updateProfile = async (data: Partial<OnboardingData & UserProfile>) => {
+    if (!userProfile) return;
+    const updated = {
+      ...userProfile,
+      ...data,
+      preferredRole: data.preferredRole || data.role || (userProfile as any).preferredRole || userProfile.role,
+      skills: data.skills ? normalizeSkillBag(data) : userProfile.skills,
+      techStack: data.skills ? normalizeSkillBag(data) : (data.techStack || userProfile.techStack),
+    };
+    setUserProfileState(updated as any);
+    
+    const archetype = calcArchetype(updated as any);
+    setUserArchetype(archetype);
+    
+    if (auth.currentUser) {
+      const myUid = auth.currentUser.uid;
+      const firestoreUpdate: any = {
+        ...data,
+        archetype,
+        updatedAt: new Date().toISOString()
+      };
+      if (data.preferredRole) firestoreUpdate.role = data.preferredRole;
+      if (data.skills) {
+        firestoreUpdate.skills = normalizeSkillBag(data);
+        firestoreUpdate.techStack = normalizeSkillBag(data);
+      }
+      
+      await updateDoc(doc(db, 'users', myUid), firestoreUpdate).catch((err) => {
+        console.error("Firestore profile update failed:", err);
+      });
     }
   };
 
-  // ── Sprint ────────────────────────────────────────────────────────────────
-
-  const sendSprintChatNote = (text: string, senderId = 'me') => {
-    setSprintChatNotes(prev => [...prev, { id: Date.now().toString(), senderId, text, timestamp: new Date() }]);
+  const advanceProfile = () => {
+    setCurrentProfileIndex(i => Math.min(i + 1, discoverProfiles.length - 1));
   };
 
-  const startSprint = () => {
-    setIsSprintActive(true);
-    setSprintTimer(600);
+  const addMatch = async (profile: UserProfile) => {
+    if (!auth.currentUser) {
+      // Offline Local Mode Fallback Matching
+      setMatchedProfiles(prev => prev.find(p => p.id === profile.id) ? prev : [...prev, profile]);
+      setActiveMatch(profile);
+
+      setChatMessages([
+        {
+          id: 'system_icebreaker',
+          senderId: 'system',
+          text: `Synq Icebreaker: You both love ${profile.musicVibe || 'Tech House'}. How do you stay focused at 3AM?`,
+          timestamp: new Date(),
+          isSystem: true,
+        },
+        {
+          id: 'teammate_opener',
+          senderId: profile.id,
+          text: `Hey! Our ${profile.compatibilityScore}% compatibility score is absolute fire. What hackathon track are you thinking of submitting to?`,
+          timestamp: new Date(),
+        },
+      ]);
+      return;
+    }
+    const myUid = auth.currentUser.uid;
+    const theirUid = profile.id;
+
+    await setDoc(doc(db, 'users', myUid, 'swipes', theirUid), {
+      type: 'like',
+      timestamp: serverTimestamp()
+    });
+
+    const theirSwipeSnap = await getDoc(doc(db, 'users', theirUid, 'swipes', myUid));
+    if (theirSwipeSnap.exists() && theirSwipeSnap.data()?.type === 'like') {
+      const matchId = [myUid, theirUid].sort().join('_');
+      await setDoc(doc(db, 'matches', matchId), {
+        id: matchId,
+        users: [myUid, theirUid],
+        createdAt: serverTimestamp(),
+        lastMessage: {
+          text: "It's a Synq! Start chatting and build together.",
+          senderId: 'system',
+          timestamp: new Date()
+        },
+        typing: {
+          [myUid]: false,
+          [theirUid]: false
+        }
+      });
+
+      const msgCol = collection(db, 'matches', matchId, 'messages');
+      await addDoc(msgCol, {
+        senderId: 'system',
+        text: `Synq Icebreaker: You both love ${profile.musicVibe}. How do you stay focused at 3AM?`,
+        timestamp: serverTimestamp(),
+        isSystem: true
+      });
+
+      setActiveMatch(profile);
+    }
+  };
+
+  const sendChatMessage = async (text: string) => {
+    if (!auth.currentUser) {
+      // Offline Local Mode Fallback Messaging
+      setChatMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        senderId: 'me',
+        text,
+        timestamp: new Date()
+      }]);
+
+      if (activeMatch) {
+        setIsTeammateTyping(true);
+        setTimeout(() => {
+          setIsTeammateTyping(false);
+          const reply = text.toLowerCase().includes('sprint')
+            ? "Yes! Let's fire up the Compatibility Sprint right now. I'd love to solve one of those fast-paced challenges with you!"
+            : text.toLowerCase().includes('hi') || text.toLowerCase().includes('hey')
+              ? `Hey! Awesome to connect. That ${activeMatch.compatibilityScore}% match score is huge! Tap the phone icon in the top right so we can start our 10-minute Sprint room! 🚀`
+              : "That's super interesting! Let's jump into a quick Compatibility Sprint so we can test our workflow dynamic live!";
+          
+          setChatMessages(prev => [...prev, {
+            id: (Date.now() + 1).toString(),
+            senderId: activeMatch.id,
+            text: reply,
+            timestamp: new Date()
+          }]);
+        }, 1500);
+      }
+      return;
+    }
+    if (!activeMatch) return;
+    const myUid = auth.currentUser.uid;
+    const matchId = [myUid, activeMatch.id].sort().join('_');
+
+    const msgCol = collection(db, 'matches', matchId, 'messages');
+    await addDoc(msgCol, {
+      senderId: myUid,
+      text,
+      timestamp: serverTimestamp()
+    });
+
+    await updateDoc(doc(db, 'matches', matchId), {
+      lastMessage: {
+        text,
+        senderId: myUid,
+        timestamp: new Date()
+      }
+    });
+  };
+
+  const updateTypingStatus = async (isTyping: boolean) => {
+    if (!auth.currentUser || !activeMatch) return;
+    const myUid = auth.currentUser.uid;
+    const matchId = [myUid, activeMatch.id].sort().join('_');
+    await updateDoc(doc(db, 'matches', matchId), {
+      [`typing.${myUid}`]: isTyping
+    }).catch(() => {});
+  };
+
+  const updateVoiceStatus = async (muted: boolean, speaking: boolean) => {
+    if (!auth.currentUser || !activeMatch) return;
+    const myUid = auth.currentUser.uid;
+    const matchId = [myUid, activeMatch.id].sort().join('_');
+    const roomRef = doc(db, 'voiceRooms', matchId);
+    
+    await updateDoc(roomRef, {
+      [`members.${myUid}.muted`]: muted,
+      [`members.${myUid}.speaking`]: speaking
+    }).catch(() => {});
+  };
+
+  const sendSprintChatNote = async (text: string) => {
+    if (!auth.currentUser || !voiceRoomState) {
+      // Local fallback mode note posting
+      setSprintChatNotes(prev => [...prev, {
+        id: Date.now().toString(),
+        senderId: 'me',
+        text,
+        timestamp: new Date()
+      }]);
+      return;
+    }
+    if (!activeMatch) return;
+    const myUid = auth.currentUser.uid;
+    const matchId = [myUid, activeMatch.id].sort().join('_');
+    const roomRef = doc(db, 'voiceRooms', matchId);
+
+    const updatedNotes = [...(voiceRoomState.chatNotes || []), {
+      senderId: myUid,
+      text,
+      timestamp: new Date()
+    }];
+
+    await updateDoc(roomRef, {
+      chatNotes: updatedNotes
+    });
+  };
+
+  const startSprint = async () => {
     const challenge = SPRINT_CHALLENGES[Math.floor(Math.random() * SPRINT_CHALLENGES.length)];
     setCurrentSprintChallenge(challenge);
-    setSprintChatNotes([{ id: 'sprint_sys', senderId: 'system', text: 'Sprint Active! Unmute and discuss the challenge below.', timestamp: new Date(), isSystem: true }]);
+    setSprintChatNotes([{
+      id: 'sprint_sys',
+      senderId: 'system',
+      text: 'Sprint Active! Unmute and discuss the challenge below.',
+      timestamp: new Date(),
+      isSystem: true
+    }]);
+    setIsSprintActive(true);
+    setSprintTimer(600);
 
-    if (sprintIntervalRef.current) clearInterval(sprintIntervalRef.current);
-    sprintIntervalRef.current = setInterval(() => {
-      setSprintTimer(prev => {
-        if (prev <= 1) { clearInterval(sprintIntervalRef.current!); endSprint(); return 0; }
-        return prev - 1;
-      });
-    }, 1000);
+    if (!auth.currentUser || !activeMatch) {
+      // Local fallback mode timer interval
+      if (sprintIntervalRef.current) clearInterval(sprintIntervalRef.current);
+      sprintIntervalRef.current = setInterval(() => {
+        setSprintTimer(prev => {
+          if (prev <= 1) {
+            clearInterval(sprintIntervalRef.current!);
+            endSprint();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
 
-    let tick = 0;
-    speakIntervalRef.current = setInterval(() => {
-      tick++;
-      if (tick % 8 === 0) { setIsTeammateSpeaking(true); setTimeout(() => setIsTeammateSpeaking(false), 3000); }
-      if (activeMatch) {
-        if (tick === 10) sendSprintChatNote('For the MVP, I think we should prioritize realtime matching!', activeMatch.id);
-        if (tick === 24) sendSprintChatNote('Monetization: premium university hackathon SaaS tiers!', activeMatch.id);
-        if (tick === 38) sendSprintChatNote("Let's polish the card animations and keep voice rooms low-pressure.", activeMatch.id);
+      // Local mock teammate speaking/notes ticking
+      let tick = 0;
+      const tickInterval = setInterval(() => {
+        tick++;
+        if (tick % 8 === 0) {
+          setIsTeammateSpeaking(true);
+          setTimeout(() => setIsTeammateSpeaking(false), 3000);
+        }
+        if (activeMatch) {
+          if (tick === 10) {
+            setSprintChatNotes(prev => [...prev, {
+              id: `note_${tick}`,
+              senderId: activeMatch.id,
+              text: `For the MVP challenge "${challenge.title}", I think we should prioritize rapid frontend mockups first!`,
+              timestamp: new Date()
+            }]);
+          }
+          if (tick === 24) {
+            setSprintChatNotes(prev => [...prev, {
+              id: `note_${tick}`,
+              senderId: activeMatch.id,
+              text: 'Monetization: premium campus tier integrations!',
+              timestamp: new Date()
+            }]);
+          }
+        }
+      }, 1000);
+
+      (sprintIntervalRef as any).tickInterval = tickInterval;
+      return;
+    }
+
+    const myUid = auth.currentUser.uid;
+    const matchId = [myUid, activeMatch.id].sort().join('_');
+    const sprintEndAt = Date.now() + 600 * 1000;
+
+    await setDoc(doc(db, 'voiceRooms', matchId), {
+      id: matchId,
+      active: true,
+      challenge,
+      sprintEndAt,
+      chatNotes: [{
+        senderId: 'system',
+        text: 'Sprint Active! Discuss the challenge below.',
+        isSystem: true
+      }],
+      members: {
+        [myUid]: { speaking: false, muted: voiceMuted, joinedAt: new Date() }
       }
-    }, 1000);
+    });
   };
 
-  const endSprint = () => {
+  const endSprint = async () => {
     setIsSprintActive(false);
-    if (sprintIntervalRef.current) clearInterval(sprintIntervalRef.current);
-    if (speakIntervalRef.current)  clearInterval(speakIntervalRef.current);
+    if (sprintIntervalRef.current) {
+      clearInterval(sprintIntervalRef.current);
+      if ((sprintIntervalRef as any).tickInterval) {
+        clearInterval((sprintIntervalRef as any).tickInterval);
+      }
+    }
 
     if (activeMatch && userProfile && userArchetype) {
       const score = Math.round((activeMatch.compatibilityScore + 85) / 2);
@@ -564,9 +1123,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         confidenceScore: score,
       });
     }
-  };
 
-  // ── Team approval ─────────────────────────────────────────────────────────
+    if (!auth.currentUser || !activeMatch) return;
+    const myUid = auth.currentUser.uid;
+    const matchId = [myUid, activeMatch.id].sort().join('_');
+
+    await updateDoc(doc(db, 'voiceRooms', matchId), {
+      active: false
+    }).catch(() => {});
+  };
 
   const approveTeamSelection = (status: 'APPROVE' | 'MAYBE' | 'DECLINE', nav?: any) => {
     if (status === 'APPROVE' && activeMatch && userProfile) {
@@ -584,7 +1149,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // ── Social ────────────────────────────────────────────────────────────────
+  const redFlagsForProfile = (profile: UserProfile): string[] => {
+    if (!userProfile) return [];
+    const flags: string[] = [];
+    if (userProfile.preferredRole === profile.role && profile.role === 'Pitch Wizard')
+      flags.push('Both love to pitch — only one can present to judges.');
+    if ((userProfile.schedule === 'Early Bird' && profile.schedule === 'Late Night') ||
+        (userProfile.schedule === 'Late Night' && profile.schedule === 'Early Bird'))
+      flags.push('Opposite schedules — one sleeping while the other peaks.');
+    if ((userProfile.shipVsPolish === 'Ship Fast' && profile.shipVsPolish === 'Polish to Perfection') ||
+        (userProfile.shipVsPolish === 'Polish to Perfection' && profile.shipVsPolish === 'Ship Fast'))
+      flags.push('Shipping speed conflict — quick hack vs. pixel-perfect pushes.');
+    return flags;
+  };
 
   const voteHotTake = (index: number, vote: 'agree' | 'disagree') => {
     setHotTakes(prev => {
@@ -604,9 +1181,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // ── Reset ─────────────────────────────────────────────────────────────────
-
-  const resetApp = () => {
+  const resetApp = async () => {
     setIsOnboarded(false);
     setUserProfileState(null);
     setUserArchetype(null);
@@ -618,24 +1193,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSprintChatNotes([]);
     setTeamDynamicReport(null);
     setTeamLobbyData(null);
+    await auth.signOut();
   };
 
-  useEffect(() => () => {
-    if (sprintIntervalRef.current) clearInterval(sprintIntervalRef.current);
-    if (chatTimeoutRef.current)    clearTimeout(chatTimeoutRef.current);
-    if (speakIntervalRef.current)  clearInterval(speakIntervalRef.current);
-  }, []);
+  const signOut = async () => {
+    setIsAuthLoading(true);
+    try {
+      await firebaseSignOut(auth);
+      setIsOnboarded(false);
+      setUserProfileState(null);
+      setUserArchetype(null);
+      setCurrentProfileIndex(0);
+      setActiveMatch(null);
+      setMatchedProfiles([]);
+      setChatMessages([]);
+      setIsSprintActive(false);
+      setSprintChatNotes([]);
+      setTeamDynamicReport(null);
+      setTeamLobbyData(null);
+    } catch (error) {
+      console.error("Sign out error:", error);
+    }
+    setIsAuthLoading(false);
+  };
 
   return (
     <AppContext.Provider value={{
       isOnboarded,
+      isAuthenticated,
+      isAuthLoading,
       userProfile,
       userArchetype,
       completeOnboarding,
       finishOnboarding,
       updateProfile,
       resetApp,
-      profiles: PRE_MADE_PROFILES,
+      signOut,
+      profiles: discoverProfiles,
       currentProfileIndex,
       advanceProfile,
       activeMatch,
@@ -646,6 +1240,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       chatMessages,
       sendChatMessage,
       isTeammateTyping,
+      updateTypingStatus,
       sprintTimer,
       isSprintActive,
       startSprint,
@@ -656,6 +1251,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       voiceMuted,
       setVoiceMuted,
       isTeammateSpeaking,
+      isTeammateMuted,
+      seedDemoBuilders,
       teamDynamicReport,
       approveTeamSelection,
       teamLobbyData,

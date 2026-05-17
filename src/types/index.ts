@@ -3,9 +3,13 @@ export type RoleType = 'Frontend Developer' | 'Backend Developer' | 'Fullstack D
 export interface UserProfile {
   id: string;
   name: string;
+  username?: string;
+  email?: string;
+  bio?: string;
   avatar: string;
   college: string;
   role: RoleType;
+  preferredRole?: RoleType;
   skills: string[];
   techStack: string[];
   schedule: 'Late Night' | 'Early Bird' | '24/7 Machine' | 'Flexible';
@@ -29,10 +33,20 @@ export interface UserProfile {
     idealTeammates: string[];
     weaknesses: string[];
   };
+  onboardingComplete?: boolean;
+  github?: string;
+  twitter?: string;
+  linkedin?: string;
+  projectInterests?: string[];
+  createdAt?: any;
+  updatedAt?: any;
 }
 
 export interface OnboardingData {
   name: string;
+  username?: string;
+  email?: string;
+  bio?: string;
   college: string;
   skills: string[];
   preferredRole: RoleType;
@@ -45,6 +59,10 @@ export interface OnboardingData {
   toxicHabit: string;
   musicVibe: string;
   shipVsPolish: 'Ship Fast' | 'Polish to Perfection' | 'Healthy Balance';
+  github?: string;
+  twitter?: string;
+  linkedin?: string;
+  projectInterests?: string[];
 }
 
 export interface Message {

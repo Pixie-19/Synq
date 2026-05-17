@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View, Image, Animated, TextInput, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import { StyleSheet, Text, View, Image, Animated, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
 import { Mic, MicOff, Send, Clock, BookOpen, PhoneOff, Award, Sparkles } from 'lucide-react-native';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { useApp } from '../context/AppContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type Props = StackScreenProps<any, 'SprintRoom'>;
 
 export const SprintScreen: React.FC<Props> = ({ navigation }) => {
-  const { activeMatch, sprintTimer, endSprint, currentSprintChallenge, sprintChatNotes, sendSprintChatNote, voiceMuted, setVoiceMuted, isTeammateSpeaking } = useApp();
+  const { userProfile, activeMatch, sprintTimer, endSprint, currentSprintChallenge, sprintChatNotes, sendSprintChatNote, voiceMuted, setVoiceMuted, isTeammateSpeaking } = useApp();
   const [inputVal, setInputVal] = useState('');
   const pulseAnim  = useRef(new Animated.Value(1)).current;
   const scrollRef  = useRef<ScrollView | null>(null);
@@ -15,15 +16,17 @@ export const SprintScreen: React.FC<Props> = ({ navigation }) => {
   const formatTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
 
   useEffect(() => {
-    if (isTeammateSpeaking) {
-      Animated.loop(Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.25, duration: 500, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1.0,  duration: 500, useNativeDriver: true }),
-      ])).start();
-    } else { pulseAnim.setValue(1); }
-  }, [isTeammateSpeaking, pulseAnim]);
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.15, duration: 1000, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1.0, duration: 1000, useNativeDriver: true }),
+      ])
+    ).start();
+  }, [pulseAnim]);
 
-  useEffect(() => { setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100); }, [sprintChatNotes]);
+  useEffect(() => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+  }, [sprintChatNotes]);
 
   const handlePostNote = () => {
     if (!inputVal.trim()) return;
@@ -37,100 +40,111 @@ export const SprintScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   if (!activeMatch || !currentSprintChallenge) return null;
-  const userAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80';
+  const userAvatar = (userProfile as any)?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80';
 
   return (
-    <View style={styles.container}>
-
-      <View style={styles.header}>
-        <View style={styles.roomStatus}>
-          <View style={styles.liveDot} />
-          <Text style={styles.roomTitle}>LIVE COMPATIBILITY SPRINT</Text>
-        </View>
-        <View style={styles.timerBadge}>
-          <Clock color="#800020" size={16} style={{ marginRight: 6 }} />
-          <Text style={styles.timerText}>{formatTime(sprintTimer)}</Text>
-        </View>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Voice panel */}
-        <View style={styles.voicePanel}>
-          <View style={styles.voiceUser}>
-            <View style={[styles.avatarOutline, voiceMuted && styles.mutedOutline]}>
-              <Image source={{ uri: userAvatar }} style={styles.avatarImg} />
+    <SafeAreaView style={styles.safeContainer} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <View style={{ flex: 1 }}>
+          <View style={styles.header}>
+            <View style={styles.roomStatus}>
+              <View style={styles.liveDot} />
+              <Text style={styles.roomTitle}>LIVE COMPATIBILITY SPRINT</Text>
             </View>
-            <Text style={styles.avatarName}>You {voiceMuted ? '(Muted)' : '(Mic On)'}</Text>
-          </View>
-          <View style={styles.vsLine}><Text style={styles.vsText}>×</Text></View>
-          <View style={styles.voiceUser}>
-            <Animated.View style={[styles.pulseRing, { opacity: isTeammateSpeaking ? 0.3 : 0, transform: [{ scale: pulseAnim }], backgroundColor: '#800020' }]} />
-            <View style={[styles.avatarOutline, { borderColor: isTeammateSpeaking ? '#800020' : '#E0E0E0' }]}>
-              <Image source={{ uri: activeMatch.avatar }} style={styles.avatarImg} />
+            <View style={styles.timerBadge}>
+              <Clock color="#800020" size={16} style={{ marginRight: 6 }} />
+              <Text style={styles.timerText}>{formatTime(sprintTimer)}</Text>
             </View>
-            <Text style={styles.avatarName}>{activeMatch.name.split(' ')[0]} {isTeammateSpeaking ? '(Speaking)' : '(Listening)'}</Text>
           </View>
-        </View>
 
-        {/* Sprint challenge */}
-        <View style={styles.challengeCard}>
-          <View style={styles.challengeHeader}>
-            <BookOpen color="#800020" size={18} style={{ marginRight: 8 }} />
-            <Text style={styles.challengeHeaderTitle}>AI SPRINT CHALLENGE</Text>
-          </View>
-          <Text style={styles.challengeTitle}>{currentSprintChallenge.title}</Text>
-          <Text style={styles.challengeDesc}>{currentSprintChallenge.problem}</Text>
-          <View style={styles.innerDivider} />
-          <Text style={styles.secTitle}>MVP Features to Discuss:</Text>
-          {currentSprintChallenge.mvpPoints.map((pt, i) => (
-            <View key={i} style={styles.pointRow}>
-              <Text style={styles.bullet}>✦</Text>
-              <Text style={styles.pointText}>{pt}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Notes whiteboard */}
-        <Text style={styles.sectionTitle}>Shared Ideation Workspace</Text>
-        <View style={styles.notesPanel}>
-          <ScrollView ref={scrollRef} style={{ maxHeight: 180 }} contentContainerStyle={{ padding: 12 }} nestedScrollEnabled>
-            {sprintChatNotes.map(note => note.isSystem ? (
-              <View key={note.id} style={styles.sysNote}><Text style={styles.sysNoteText}>{note.text}</Text></View>
-            ) : (
-              <View key={note.id} style={[styles.noteRow, note.senderId === 'me' ? styles.noteMe : styles.noteThem]}>
-                <Text style={styles.noteAuthor}>{note.senderId === 'me' ? 'You' : activeMatch.name.split(' ')[0]}:</Text>
-                <Text style={styles.noteText}>{note.text}</Text>
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            {/* Voice panel */}
+            <View style={styles.voicePanel}>
+              <View style={styles.voiceUser}>
+                <View style={[styles.avatarOutline, voiceMuted && styles.mutedOutline]}>
+                  <Image source={{ uri: userAvatar }} style={styles.avatarImg} />
+                </View>
+                <Text style={styles.avatarName}>You ({voiceMuted ? 'Muted' : 'Speaking'})</Text>
               </View>
-            ))}
+
+              <View style={styles.vsLine}>
+                <Text style={styles.vsText}>⚡</Text>
+              </View>
+
+              <View style={styles.voiceUser}>
+                {isTeammateSpeaking && (
+                  <Animated.View style={[styles.pulseRing, { backgroundColor: '#800020', transform: [{ scale: pulseAnim }], opacity: 0.15 }]} />
+                )}
+                <View style={[styles.avatarOutline, !isTeammateSpeaking && styles.avatarOutline]}>
+                  <Image source={{ uri: activeMatch.avatar }} style={styles.avatarImg} />
+                </View>
+                <Text style={styles.avatarName}>{activeMatch.name.split(' ')[0]} ({isTeammateSpeaking ? 'Speaking' : 'Listening'})</Text>
+              </View>
+            </View>
+
+            {/* Challenge */}
+            <View style={styles.challengeCard}>
+              <View style={styles.challengeHeader}>
+                <BookOpen color="#800020" size={16} style={{ marginRight: 6 }} />
+                <Text style={styles.challengeHeaderTitle}>COLLABORATIVE TASK</Text>
+              </View>
+              <Text style={styles.challengeTitle}>{currentSprintChallenge.title}</Text>
+              <Text style={styles.challengeDesc}>{currentSprintChallenge.problem}</Text>
+              <View style={styles.innerDivider} />
+              <Text style={styles.secTitle}>PROMPTS</Text>
+              {currentSprintChallenge.mvpPoints.map((pt, i) => (
+                <View key={i} style={styles.pointRow}>
+                  <Text style={styles.bullet}>✦</Text>
+                  <Text style={styles.pointText}>{pt}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* whiteboard */}
+            <Text style={styles.sectionTitle}>Shared Concept Board</Text>
+            <View style={styles.notesPanel}>
+              <ScrollView ref={scrollRef} style={{ maxHeight: 200 }} contentContainerStyle={{ padding: 12 }}>
+                {sprintChatNotes.map(note => (
+                  <View key={note.id} style={[styles.noteRow, note.senderId === 'me' ? styles.noteMe : styles.noteThem]}>
+                    <Text style={styles.noteAuthor}>{note.senderId === 'me' ? 'You' : activeMatch.name.split(' ')[0]}:</Text>
+                    <Text style={styles.noteText}>{note.text}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+              <View style={styles.notePostWrapper}>
+                <TextInput placeholder="Post a concept..." placeholderTextColor="#767676" style={styles.noteInput} value={inputVal} onChangeText={setInputVal} onSubmitEditing={handlePostNote} />
+                <TouchableOpacity style={styles.postBtn} onPress={handlePostNote}><Send color="#800020" size={16} /></TouchableOpacity>
+              </View>
+            </View>
           </ScrollView>
-          <View style={styles.notePostWrapper}>
-            <TextInput placeholder="Post a concept..." placeholderTextColor="#767676" style={styles.noteInput} value={inputVal} onChangeText={setInputVal} onSubmitEditing={handlePostNote} />
-            <TouchableOpacity style={styles.postBtn} onPress={handlePostNote}><Send color="#800020" size={16} /></TouchableOpacity>
+
+          {/* Controls */}
+          <View style={styles.controlsFooter}>
+            <TouchableOpacity style={[styles.actionRound, voiceMuted && styles.actionRoundMuted]} onPress={() => setVoiceMuted(!voiceMuted)}>
+              {voiceMuted ? <MicOff color="#D03B5B" size={20} /> : <Mic color="#800020" size={20} />}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.finishSprintBtn} onPress={handleEnd}>
+              <View style={styles.finishSprintGrad}>
+                <Award color="#FFFFFF" size={18} style={{ marginRight: 6 }} />
+                <Text style={styles.finishSprintText}>Finish Sprint →</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.actionRound, styles.actionRoundLeave]} onPress={handleEnd}>
+              <PhoneOff color="#D03B5B" size={20} />
+            </TouchableOpacity>
           </View>
         </View>
-      </ScrollView>
-
-      {/* Controls */}
-      <View style={styles.controlsFooter}>
-        <TouchableOpacity style={[styles.actionRound, voiceMuted && styles.actionRoundMuted]} onPress={() => setVoiceMuted(!voiceMuted)}>
-          {voiceMuted ? <MicOff color="#D03B5B" size={20} /> : <Mic color="#800020" size={20} />}
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.finishSprintBtn} onPress={handleEnd}>
-          <View style={styles.finishSprintGrad}>
-            <Award color="#FFFFFF" size={18} style={{ marginRight: 6 }} />
-            <Text style={styles.finishSprintText}>Finish Sprint →</Text>
-          </View>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionRound, styles.actionRoundLeave]} onPress={handleEnd}>
-          <PhoneOff color="#D03B5B" size={20} />
-        </TouchableOpacity>
-      </View>
-    </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9F6F0', paddingTop: Platform.OS === 'ios' ? 50 : 20 },
+  safeContainer: { flex: 1, backgroundColor: '#F9F6F0' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E0E0E0', borderStyle: 'dotted' },
   roomStatus: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#D03B5B' },
@@ -162,8 +176,8 @@ const styles = StyleSheet.create({
   sysNote: { backgroundColor: '#F9F6F0', borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted', borderRadius: 8, padding: 8, marginBottom: 8 },
   sysNoteText: { color: '#800020', fontSize: 10, fontWeight: '700', textAlign: 'center', fontStyle: 'italic' },
   noteRow: { flexDirection: 'row', marginBottom: 8, backgroundColor: '#FFFFFF', padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted' },
-  noteMe:   { borderLeftWidth: 3, borderLeftColor: '#800020', borderLeftStyle: 'solid' },
-  noteThem: { borderLeftWidth: 3, borderLeftColor: '#2C2C2C', borderLeftStyle: 'solid' },
+  noteMe:   { borderLeftWidth: 3, borderLeftColor: '#800020' },
+  noteThem: { borderLeftWidth: 3, borderLeftColor: '#2C2C2C' },
   noteAuthor: { fontWeight: '800', fontSize: 11, color: '#2C2C2C', marginRight: 6 },
   noteText: { flex: 1, color: '#767676', fontSize: 12, fontWeight: '500' },
   notePostWrapper: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#E0E0E0', borderStyle: 'dotted', padding: 8, backgroundColor: '#F9F6F0' },

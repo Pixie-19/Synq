@@ -4,6 +4,7 @@ import {
   TouchableOpacity, Dimensions, Platform
 } from 'react-native';
 import { Heart, X, Zap, AlertTriangle, Clock, Music, Sparkles, PenTool, Mic, Server, Coffee } from 'lucide-react-native';
+import { Github, Twitter, Linkedin } from '../components/SocialIcons';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { useApp } from '../context/AppContext';
 import { UserProfile } from '../types';
@@ -13,6 +14,15 @@ const SWIPE_THRESHOLD = SW * 0.35;
 const CARD_W = SW - 40;
 
 type Props = StackScreenProps<any, 'DiscoverMain'>;
+
+const cleanHandle = (value?: string) => (value || '').trim().replace(/^@/, '').replace(/^(https?:\/\/)?(www\.)?/i, '').replace(/\/$/, '');
+const formatSocial = (value?: string, platform?: 'github' | 'twitter' | 'linkedin') => {
+  const handle = cleanHandle(value);
+  if (!handle) return '';
+  if (platform === 'twitter') return `x.com/${handle.replace(/^(x\.com|twitter\.com)\//i, '')}`;
+  if (platform === 'linkedin') return `linkedin.com/in/${handle.replace(/^linkedin\.com\/(in\/)?/i, '')}`;
+  return `github.com/${handle.replace(/^github\.com\//i, '')}`;
+};
 
 const IconMap: Record<string, any> = {
   'PenTool': PenTool,
@@ -121,6 +131,13 @@ const SwipeCard: React.FC<SwipeCardProps> = ({ profile, redFlags, onSwipeRight, 
 
         <Text style={styles.profileName}>{profile.name}</Text>
         <Text style={styles.profileRole}>{profile.role} · {profile.college}</Text>
+        {(profile as any).github || (profile as any).twitter || (profile as any).linkedin ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6, alignItems: 'center' }}>
+            {(profile as any).github ? <Text style={{ color: '#767676', fontSize: 11, fontWeight: '700' }}>{formatSocial((profile as any).github, 'github')}</Text> : null}
+            {(profile as any).twitter ? <Text style={{ color: '#767676', fontSize: 11, fontWeight: '700' }}>{formatSocial((profile as any).twitter, 'twitter')}</Text> : null}
+            {(profile as any).linkedin ? <Text style={{ color: '#767676', fontSize: 11, fontWeight: '700' }}>{formatSocial((profile as any).linkedin, 'linkedin')}</Text> : null}
+          </View>
+        ) : null}
         <Text style={styles.profileTagline}>{profile.tagline}</Text>
 
         <View style={styles.infoRow}>
@@ -158,7 +175,7 @@ const SwipeCard: React.FC<SwipeCardProps> = ({ profile, redFlags, onSwipeRight, 
 // ─── Discover Screen ───────────────────────────────────────────────────────────
 
 export const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
-  const { profiles, currentProfileIndex, advanceProfile, setActiveMatch, addMatch, redFlagsForProfile } = useApp();
+  const { profiles, currentProfileIndex, advanceProfile, setActiveMatch, addMatch, redFlagsForProfile, seedDemoBuilders } = useApp();
   const [localIndex, setLocalIndex] = useState(currentProfileIndex);
 
   const visibleProfiles = profiles.slice(localIndex, localIndex + 3);
@@ -186,9 +203,26 @@ export const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
 
   if (visibleProfiles.length === 0) {
     return (
-      <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
-        <Text style={{ color: '#2C2C2C', fontSize: 18, fontWeight: '700', fontFamily: 'serif' }}>No more profiles</Text>
-        <Text style={{ color: '#767676', fontSize: 13, marginTop: 8, fontStyle: 'italic' }}>Check back tomorrow!</Text>
+      <View style={[styles.container, { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }]}>
+        <Text style={{ color: '#2C2C2C', fontSize: 18, fontWeight: '700', fontFamily: 'serif', textAlign: 'center' }}>No more profiles</Text>
+        <Text style={{ color: '#767676', fontSize: 13, marginTop: 8, fontStyle: 'italic', textAlign: 'center', marginBottom: 24 }}>Check back tomorrow or seed demo builders to test matchmaking!</Text>
+        
+        {seedDemoBuilders && (
+          <TouchableOpacity 
+            style={{ 
+              backgroundColor: '#800020', 
+              paddingVertical: 12, 
+              paddingHorizontal: 20, 
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: '#800020',
+              borderStyle: 'solid'
+            }} 
+            onPress={seedDemoBuilders}
+          >
+            <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13, fontFamily: 'serif' }}>Seed Demo Builders (Test Mode)</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }

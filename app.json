@@ -31,7 +31,14 @@
     },
     "plugins": [
       "expo-web-browser",
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Synq needs photo library access so you can update your profile image.",
+          "cameraPermission": "Synq needs camera access so you can take a new profile photo."
+        }
+      ]
     ],
     "extra": {
       "eas": {

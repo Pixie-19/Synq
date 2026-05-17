@@ -119,25 +119,41 @@ function MainTabs() {
 
 // ─── Auth stack ─────────────────────────────────────────────────────────────
 
+const OnboardingStack = createStackNavigator();
+
 function AuthStackNav() {
   return (
     <AuthStack.Navigator screenOptions={{ headerShown: false }}>
       <AuthStack.Screen name="Splash"      component={SplashScreen} />
       <AuthStack.Screen name="Auth"        component={AuthScreen} />
-      <AuthStack.Screen name="Onboarding"  component={OnboardingScreen} />
-      <AuthStack.Screen name="Archetype"   component={ArchetypeScreen} />
     </AuthStack.Navigator>
+  );
+}
+
+function OnboardingStackNav() {
+  return (
+    <OnboardingStack.Navigator screenOptions={{ headerShown: false }}>
+      <OnboardingStack.Screen name="Onboarding"  component={OnboardingScreen} />
+      <OnboardingStack.Screen name="Archetype"   component={ArchetypeScreen} />
+    </OnboardingStack.Navigator>
   );
 }
 
 // ─── Root — switches between auth flow and main app ────────────────────────
 
 function RootNavigator() {
-  const { isOnboarded } = useApp();
+  const { isOnboarded, isAuthLoading, isAuthenticated } = useApp();
+
+  if (isAuthLoading) {
+    return <SplashScreen navigation={null as any} route={null as any} />;
+  }
+
   return (
     <RootStack.Navigator screenOptions={{ headerShown: false }}>
-      {isOnboarded ? (
+      {isAuthenticated && isOnboarded ? (
         <RootStack.Screen name="MainApp" component={MainTabs} />
+      ) : isAuthenticated && !isOnboarded ? (
+        <RootStack.Screen name="OnboardingFlow" component={OnboardingStackNav} />
       ) : (
         <RootStack.Screen name="AuthFlow" component={AuthStackNav} />
       )}

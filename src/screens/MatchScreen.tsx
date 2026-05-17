@@ -1,13 +1,23 @@
 import React, { useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, Image, Animated, TouchableOpacity } from 'react-native';
 import { Sparkles, MessageSquare, Zap } from 'lucide-react-native';
+import { Github, Twitter, Linkedin } from '../components/SocialIcons';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { useApp } from '../context/AppContext';
 
 type Props = StackScreenProps<any, 'Match'>;
 
+const cleanHandle = (value?: string) => (value || '').trim().replace(/^@/, '').replace(/^(https?:\/\/)?(www\.)?/i, '').replace(/\/$/, '');
+const formatSocial = (value?: string, platform?: 'github' | 'twitter' | 'linkedin') => {
+  const handle = cleanHandle(value);
+  if (!handle) return '';
+  if (platform === 'twitter') return `x.com/${handle.replace(/^(x\.com|twitter\.com)\//i, '')}`;
+  if (platform === 'linkedin') return `linkedin.com/in/${handle.replace(/^linkedin\.com\/(in\/)?/i, '')}`;
+  return `github.com/${handle.replace(/^github\.com\//i, '')}`;
+};
+
 export const MatchScreen: React.FC<Props> = ({ navigation }) => {
-  const { activeMatch } = useApp();
+  const { userProfile, activeMatch } = useApp();
   const popAnim     = useRef(new Animated.Value(0.5)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -20,7 +30,7 @@ export const MatchScreen: React.FC<Props> = ({ navigation }) => {
 
   if (!activeMatch) return null;
 
-  const userAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80';
+  const userAvatar = (userProfile as any)?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80';
 
   return (
     <View style={styles.container}>
@@ -50,6 +60,29 @@ export const MatchScreen: React.FC<Props> = ({ navigation }) => {
             </View>
           </View>
         </View>
+
+        {(activeMatch as any).github || (activeMatch as any).twitter || (activeMatch as any).linkedin ? (
+          <View style={styles.socialsBadgeRow}>
+            {(activeMatch as any).github ? (
+              <View style={styles.socialBadgeChip}>
+                <Github color="#800020" size={12} />
+                <Text style={styles.socialBadgeText}>{formatSocial((activeMatch as any).github, 'github')}</Text>
+              </View>
+            ) : null}
+            {(activeMatch as any).twitter ? (
+              <View style={styles.socialBadgeChip}>
+                <Twitter color="#800020" size={12} />
+                <Text style={styles.socialBadgeText}>{formatSocial((activeMatch as any).twitter, 'twitter')}</Text>
+              </View>
+            ) : null}
+            {(activeMatch as any).linkedin ? (
+              <View style={styles.socialBadgeChip}>
+                <Linkedin color="#800020" size={12} />
+                <Text style={styles.socialBadgeText}>{formatSocial((activeMatch as any).linkedin, 'linkedin')}</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
         <View style={styles.scoreCard}>
           <Text style={styles.compatibilityLabel}>Compatibility Score</Text>
@@ -93,4 +126,7 @@ const styles = StyleSheet.create({
   unlockButton: { width: '100%', borderRadius: 8, overflow: 'hidden', backgroundColor: '#800020', shadowColor: '#800020', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16, elevation: 8 },
   solidButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 18, gap: 10 },
   unlockText: { color: '#FFFFFF', fontWeight: '800', fontSize: 16, letterSpacing: 0.5, fontFamily: 'serif' },
+  socialsBadgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginBottom: 24 },
+  socialBadgeChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  socialBadgeText: { color: '#800020', fontSize: 12, fontWeight: '700' },
 });

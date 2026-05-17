@@ -7,7 +7,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { makeRedirectUri } from 'expo-auth-session';
 import { auth } from '../services/firebase';
-import { GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -22,13 +22,12 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
 
   // Configure Google Authentication Request for Expo Go compat with Proxy
   const [request, response, promptAsync] = Google.useAuthRequest({
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS || '1042888254801-giv6glpsi09t9ln4457ol871q91dive9.apps.googleusercontent.com',
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID || '1042888254801-oelcsn1fpqjdn8g69f8g8so96bp4pitg.apps.googleusercontent.com',
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB || '1042888254801-12c791pl5s0eq493bdjhhd7g0ssdk8fe.apps.googleusercontent.com',
-    redirectUri: makeRedirectUri({
-      scheme: 'synq-auth',
-      projectNameForProxy: '@Pixie-19/Synq',
-    } as any),
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID,
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB,
+    redirectUri: Platform.OS === 'web'
+      ? makeRedirectUri({ scheme: 'synq-auth' })
+      : 'https://auth.expo.io/@Pixie-19/Synq',
   });
 
   // Handle Google Auth Response and exchange with Firebase Auth
@@ -39,41 +38,40 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
         setLoading(true);
         const credential = GoogleAuthProvider.credential(authentication.idToken);
         signInWithCredential(auth, credential)
-          .then(() => {
-            setLoading(false);
-            navigation.navigate('Onboarding');
-          })
           .catch((error) => {
             setLoading(false);
             console.error("Google sign-in Firebase credential exchange error:", error);
-            Alert.alert(
-              "Firebase Authentication Failed ⚠️",
-              `We couldn't verify your Google account with Firebase.\n\nError: ${error.message}\n\nBypassing to onboarding now for presentation ease!`,
-              [{ text: "Got it!", onPress: () => navigation.navigate('Onboarding') }]
-            );
+            Alert.alert("Authentication Failed", `Error: ${error.message}`);
           });
       }
     } else if (response?.type === 'error') {
       console.warn("Google OAuth browser flow returned an error:", response.error);
-      Alert.alert(
-        "Google Auth Browser Error",
-        "The Google login browser session encountered an issue.\n\nBypassing to onboarding now for presentation ease!",
-        [{ text: "Got it!", onPress: () => navigation.navigate('Onboarding') }]
-      );
+      Alert.alert("Google Auth Error", "The Google login session encountered an issue.");
     }
   }, [response]);
 
-  const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = async () => {
+    if (!request) return;
     setLoading(true);
-    promptAsync({
-      useProxy: true,
-      projectNameForProxy: '@Pixie-19/Synq'
-    } as any)
-      .catch((err) => {
-        console.warn("Google auth prompt failed, bypassing for convenience:", err);
-        navigation.navigate('Onboarding');
-      })
-      .finally(() => setLoading(false));
+    try {
+      const localRedirectUri = makeRedirectUri({ scheme: 'synq-auth' });
+      const authUrl = await request.makeAuthUrlAsync(Google.discovery);
+      const proxyStartUrl = `https://auth.expo.io/@Pixie-19/Synq/start?authUrl=${encodeURIComponent(authUrl)}&returnUrl=${encodeURIComponent(localRedirectUri)}`;
+
+      await promptAsync({
+        url: proxyStartUrl,
+        useProxy: true,
+        projectNameForProxy: '@Pixie-19/Synq',
+      } as any);
+    } catch (err) {
+      console.warn("Google auth prompt failed:", err);
+      Alert.alert("Google Auth Error", "Failed to start Google sign-in.");
+    } finally {
+      // Don't disable loading if success, because navigation handles it
+      // But if promptAsync fails immediately, we want to clear it.
+      // Wait, we'll let useEffect handle success loading state.
+      setTimeout(() => setLoading(false), 2000);
+    }
   };
 
   const handleEmailSignIn = async () => {
@@ -84,49 +82,30 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      setLoading(false);
-      navigation.navigate('Onboarding');
     } catch (err: any) {
-      if (err.code === 'auth/operation-not-allowed') {
-        setLoading(false);
-        console.warn("Firebase config helper: Email/Password is disabled in Firebase Console.");
-        Alert.alert(
-          "Firebase Sync Tip 💡",
-          "Email/Password Sign-In is currently disabled in your Firebase Console.\n\nTo enable it:\n1. Go to Firebase Console\n2. Open 'Authentication' > 'Sign-in method'\n3. Click 'Add new provider' and select 'Email/Password' > 'Enable'.\n\nBypassing to onboarding now for seamless demo flow!",
-          [{ text: "Got it!", onPress: () => navigation.navigate('Onboarding') }]
-        );
-        return;
-      }
       if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-        // Automatically attempt registration for seamless user boarding
         try {
           await createUserWithEmailAndPassword(auth, email, password);
-          setLoading(false);
-          navigation.navigate('Onboarding');
         } catch (createErr: any) {
-          if (createErr.code === 'auth/operation-not-allowed') {
-            setLoading(false);
-            Alert.alert(
-              "Firebase Sync Tip 💡",
-              "Email/Password Sign-In is currently disabled in your Firebase Console.\n\nTo enable it:\n1. Go to Firebase Console\n2. Open 'Authentication' > 'Sign-in method'\n3. Click 'Add new provider' and select 'Email/Password' > 'Enable'.\n\nBypassing to onboarding now for seamless demo flow!",
-              [{ text: "Got it!", onPress: () => navigation.navigate('Onboarding') }]
-            );
-            return;
-          }
           setLoading(false);
-          // presentation fallback: allow bypass if offline or configuration mismatch
-          console.warn("Auth failed, letting through to onboard for presentation reliability:", createErr.message);
-          navigation.navigate('Onboarding');
+          Alert.alert("Sign Up Failed", createErr.message);
         }
       } else {
         setLoading(false);
-        console.warn("Auth failed, letting through to onboard for presentation reliability:", err.message);
-        navigation.navigate('Onboarding');
+        Alert.alert("Authentication Failed", err.message);
       }
     }
   };
 
-  const handleGuest = () => navigation.navigate('Onboarding');
+  const handleGuest = async () => {
+    setLoading(true);
+    try {
+      await signInAnonymously(auth);
+    } catch (err: any) {
+      setLoading(false);
+      Alert.alert("Guest Sign-In Failed", err.message);
+    }
+  };
 
   const showEmail = () => {
     setMode('email');

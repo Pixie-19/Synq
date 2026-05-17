@@ -18,8 +18,10 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
       Animated.timing(taglineAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
     ]).start();
 
-    const t = setTimeout(() => navigation.replace('Auth'), 3200);
-    return () => clearTimeout(t);
+    if (navigation) {
+      const t = setTimeout(() => navigation.replace('Auth'), 3200);
+      return () => clearTimeout(t);
+    }
   }, [navigation, scaleAnim, opacityAnim, taglineAnim]);
 
   return (

@@ -3,6 +3,8 @@ import { StyleSheet, Text, View, Image, TextInput, TouchableOpacity, ScrollView,
 import { ArrowLeft, Send, Sparkles, Zap, Phone, Smile, PenTool, Mic, Server, Coffee } from 'lucide-react-native';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { useApp } from '../context/AppContext';
+import { auth } from '../services/firebase';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type Props = StackScreenProps<any, 'Chat'>;
 
@@ -15,7 +17,7 @@ const IconMap: Record<string, any> = {
 };
 
 export const ChatScreen: React.FC<Props> = ({ navigation }) => {
-  const { activeMatch, chatMessages, sendChatMessage, isTeammateTyping, startSprint } = useApp();
+  const { activeMatch, chatMessages, sendChatMessage, isTeammateTyping, updateTypingStatus, startSprint } = useApp();
   const [inputVal, setInputVal] = useState('');
   const scrollRef = useRef<ScrollView | null>(null);
 
@@ -29,6 +31,16 @@ export const ChatScreen: React.FC<Props> = ({ navigation }) => {
     if (!inputVal.trim()) return;
     sendChatMessage(inputVal);
     setInputVal('');
+    if (updateTypingStatus) {
+      updateTypingStatus(false);
+    }
+  };
+
+  const handleInputChange = (text: string) => {
+    setInputVal(text);
+    if (updateTypingStatus) {
+      updateTypingStatus(text.trim().length > 0);
+    }
   };
 
   const handleSprint = () => {
@@ -39,85 +51,90 @@ export const ChatScreen: React.FC<Props> = ({ navigation }) => {
   const ArchetypeIcon = IconMap[activeMatch.archetype.icon] || Sparkles;
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
-
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <ArrowLeft color="#767676" size={20} />
-        </TouchableOpacity>
-        <Image source={{ uri: activeMatch.avatar }} style={styles.headerAvatar} />
-        <View style={styles.headerMeta}>
-          <Text style={styles.headerName}>{activeMatch.name}</Text>
-          <View style={styles.headerVibeContainer}>
-            <ArchetypeIcon color="#800020" size={12} style={{ marginRight: 4 }} />
-            <Text style={styles.headerVibe}>{activeMatch.archetype.name}</Text>
-          </View>
-        </View>
-        <TouchableOpacity style={styles.voiceBtn} onPress={handleSprint}>
-          <Phone color="#800020" size={18} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Sprint banner */}
-      <TouchableOpacity style={styles.sprintBanner} onPress={handleSprint}>
-        <View style={styles.sprintBannerContainer}>
-          <Zap color="#800020" size={16} style={{ marginRight: 8 }} />
-          <Text style={styles.sprintBannerText}>Start 10-Min Compatibility Sprint</Text>
-          <Sparkles color="#800020" size={12} style={{ marginLeft: 6 }} />
-        </View>
-      </TouchableOpacity>
-
-      {/* Messages */}
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {chatMessages.map(msg => {
-          if (msg.isSystem) return (
-            <View key={msg.id} style={styles.icebreakerCard}>
-              <Sparkles color="#800020" size={14} style={{ marginRight: 10, marginTop: 2 }} />
-              <Text style={styles.icebreakerText}>{msg.text}</Text>
+    <SafeAreaView style={styles.safeContainer} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 25}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+            <ArrowLeft color="#767676" size={20} />
+          </TouchableOpacity>
+          <Image source={{ uri: activeMatch.avatar }} style={styles.headerAvatar} />
+          <View style={styles.headerMeta}>
+            <Text style={styles.headerName}>{activeMatch.name}</Text>
+            <View style={styles.headerVibeContainer}>
+              <ArchetypeIcon color="#800020" size={12} style={{ marginRight: 4 }} />
+              <Text style={styles.headerVibe}>{activeMatch.archetype.name}</Text>
             </View>
-          );
-          const isMe = msg.senderId === 'me';
-          return (
-            <View key={msg.id} style={[styles.messageRow, isMe ? styles.rowMe : styles.rowThem]}>
-              {!isMe && <Image source={{ uri: activeMatch.avatar }} style={styles.chatAvatar} />}
-              <View style={[styles.chatBubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
-                <Text style={[styles.chatText, isMe ? styles.textMe : styles.textThem]}>{msg.text}</Text>
+          </View>
+          <TouchableOpacity style={styles.voiceBtn} onPress={handleSprint}>
+            <Phone color="#800020" size={18} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Sprint banner */}
+        <TouchableOpacity style={styles.sprintBanner} onPress={handleSprint}>
+          <View style={styles.sprintBannerContainer}>
+            <Zap color="#800020" size={16} style={{ marginRight: 8 }} />
+            <Text style={styles.sprintBannerText}>Start 10-Min Compatibility Sprint</Text>
+            <Sparkles color="#800020" size={12} style={{ marginLeft: 6 }} />
+          </View>
+        </TouchableOpacity>
+
+        {/* Messages */}
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {chatMessages.map(msg => {
+            if (msg.isSystem) return (
+              <View key={msg.id} style={styles.icebreakerCard}>
+                <Sparkles color="#800020" size={14} style={{ marginRight: 10, marginTop: 2 }} />
+                <Text style={styles.icebreakerText}>{msg.text}</Text>
+              </View>
+            );
+            const isMe = msg.senderId === auth.currentUser?.uid;
+            return (
+              <View key={msg.id} style={[styles.messageRow, isMe ? styles.rowMe : styles.rowThem]}>
+                {!isMe && <Image source={{ uri: activeMatch.avatar }} style={styles.chatAvatar} />}
+                <View style={[styles.chatBubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
+                  <Text style={[styles.chatText, isMe ? styles.textMe : styles.textThem]}>{msg.text}</Text>
+                </View>
+              </View>
+            );
+          })}
+          {isTeammateTyping && (
+            <View style={[styles.messageRow, styles.rowThem]}>
+              <Image source={{ uri: activeMatch.avatar }} style={styles.chatAvatar} />
+              <View style={[styles.chatBubble, styles.bubbleThem, styles.typingBubble]}>
+                <View style={styles.dot} /><View style={[styles.dot, { marginHorizontal: 3 }]} /><View style={styles.dot} />
               </View>
             </View>
-          );
-        })}
-        {isTeammateTyping && (
-          <View style={[styles.messageRow, styles.rowThem]}>
-            <Image source={{ uri: activeMatch.avatar }} style={styles.chatAvatar} />
-            <View style={[styles.chatBubble, styles.bubbleThem, styles.typingBubble]}>
-              <View style={styles.dot} /><View style={[styles.dot, { marginHorizontal: 3 }]} /><View style={styles.dot} />
-            </View>
-          </View>
-        )}
-      </ScrollView>
+          )}
+        </ScrollView>
 
-      {/* Input */}
-      <View style={styles.inputArea}>
-        <View style={styles.inputWrapper}>
-          <TouchableOpacity style={styles.smileBtn}><Smile color="#767676" size={20} /></TouchableOpacity>
-          <TextInput
-            placeholder={`Message ${activeMatch.name.split(' ')[0]}...`}
-            placeholderTextColor="#767676"
-            style={styles.textInput}
-            value={inputVal}
-            onChangeText={setInputVal}
-            onSubmitEditing={handleSend}
-          />
-          <TouchableOpacity onPress={handleSend}><Send color="#800020" size={20} /></TouchableOpacity>
+        {/* Input */}
+        <View style={styles.inputArea}>
+          <View style={styles.inputWrapper}>
+            <TouchableOpacity style={styles.smileBtn}><Smile color="#767676" size={20} /></TouchableOpacity>
+            <TextInput
+              placeholder={`Message ${activeMatch.name.split(' ')[0]}...`}
+              placeholderTextColor="#767676"
+              style={styles.textInput}
+              value={inputVal}
+              onChangeText={handleInputChange}
+              onSubmitEditing={handleSend}
+            />
+            <TouchableOpacity onPress={handleSend}><Send color="#800020" size={20} /></TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9F6F0', paddingTop: Platform.OS === 'ios' ? 50 : 20 },
+  safeContainer: { flex: 1, backgroundColor: '#F9F6F0' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E0E0E0', borderStyle: 'dotted' },
   backBtn: { padding: 8, marginRight: 4 },
   headerAvatar: { width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderColor: '#E0E0E0', marginRight: 10 },
