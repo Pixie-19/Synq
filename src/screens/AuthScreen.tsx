@@ -1,220 +1,409 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, TextInput, Animated, Platform, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Animated, Platform, ActivityIndicator, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Sparkles, Mail, LogIn } from 'lucide-react-native';
+import { GitBranch, Zap } from 'lucide-react-native';
 import type { StackScreenProps } from '@react-navigation/stack';
 import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
+import * as SecureStore from 'expo-secure-store';
 import { makeRedirectUri } from 'expo-auth-session';
-import { auth } from '../services/firebase';
-import { GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
+import { useAuthRequest } from 'expo-auth-session';
+import { auth, signInWithGitHubToken } from '../services/firebase';
 
 WebBrowser.maybeCompleteAuthSession();
 
 type Props = StackScreenProps<any, 'Auth'>;
 
 export const AuthScreen: React.FC<Props> = ({ navigation }) => {
-  const [mode, setMode] = useState<'home' | 'email'>('home');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const slideAnim = useRef(new Animated.Value(0)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
 
-  // Configure Google Authentication Request for Expo Go compat with Proxy
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID,
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB,
-    redirectUri: Platform.OS === 'web'
-      ? makeRedirectUri({ scheme: 'synq-auth' })
-      : 'https://auth.expo.io/@Pixie-19/Synq',
-  });
+  // Check if GitHub OAuth credentials are configured
+  const gitHubConfigured = !!(
+    process.env.EXPO_PUBLIC_GITHUB_CLIENT_ID &&
+    process.env.EXPO_PUBLIC_GITHUB_CLIENT_SECRET
+  );
 
-  // Handle Google Auth Response and exchange with Firebase Auth
+  // Configure GitHub OAuth
+  const [request, response, promptAsync] = useAuthRequest(
+    gitHubConfigured ? {
+      clientId: process.env.EXPO_PUBLIC_GITHUB_CLIENT_ID || '',
+      clientSecret: process.env.EXPO_PUBLIC_GITHUB_CLIENT_SECRET || '',
+      scopes: ['user:email', 'read:user'],
+      redirectUri: makeRedirectUri({
+        scheme: 'synq',
+        path: 'github-callback',
+      }),
+    } : {
+      clientId: 'demo',
+      clientSecret: 'demo',
+      scopes: ['user:email', 'read:user'],
+      redirectUri: makeRedirectUri({
+        scheme: 'synq',
+        path: 'github-callback',
+      }),
+    },
+    {
+      authorizationEndpoint: 'https://github.com/login/oauth/authorize',
+      tokenEndpoint: 'https://github.com/login/oauth/access_token',
+    }
+  );
+
+  // Glow animation effect
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(glowAnim, {
+          toValue: 0,
+          duration: 2000,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+  }, [glowAnim]);
+
+  // Handle GitHub OAuth Response
   useEffect(() => {
     if (response?.type === 'success') {
-      const { authentication } = response;
-      if (authentication?.idToken) {
+      const { access_token } = response.params;
+      if (access_token) {
         setLoading(true);
-        const credential = GoogleAuthProvider.credential(authentication.idToken);
-        signInWithCredential(auth, credential)
-          .catch((error) => {
-            setLoading(false);
-            console.error("Google sign-in Firebase credential exchange error:", error);
-            Alert.alert("Authentication Failed", `Error: ${error.message}`);
-          });
+        handleGitHubSignIn(access_token);
       }
     } else if (response?.type === 'error') {
-      console.warn("Google OAuth browser flow returned an error:", response.error);
-      Alert.alert("Google Auth Error", "The Google login session encountered an issue.");
+      console.warn("GitHub OAuth error:", response.error);
+      Alert.alert("GitHub Auth Error", "Failed to authenticate with GitHub. Please try again.");
+      setLoading(false);
     }
   }, [response]);
 
-  const handleGoogleSignIn = async () => {
-    if (!request) return;
-    setLoading(true);
+  const handleGitHubSignIn = async (accessToken: string) => {
     try {
-      const localRedirectUri = makeRedirectUri({ scheme: 'synq-auth' });
-      const authUrl = await request.makeAuthUrlAsync(Google.discovery);
-      const proxyStartUrl = `https://auth.expo.io/@Pixie-19/Synq/start?authUrl=${encodeURIComponent(authUrl)}&returnUrl=${encodeURIComponent(localRedirectUri)}`;
+      // Store the access token securely
+      await SecureStore.setItemAsync('github_access_token', accessToken);
 
-      await promptAsync({
-        url: proxyStartUrl,
-        useProxy: true,
-        projectNameForProxy: '@Pixie-19/Synq',
-      } as any);
-    } catch (err) {
-      console.warn("Google auth prompt failed:", err);
-      Alert.alert("Google Auth Error", "Failed to start Google sign-in.");
-    } finally {
-      // Don't disable loading if success, because navigation handles it
-      // But if promptAsync fails immediately, we want to clear it.
-      // Wait, we'll let useEffect handle success loading state.
-      setTimeout(() => setLoading(false), 2000);
+      // Sign in with Firebase using the GitHub token
+      const user = await signInWithGitHubToken(accessToken);
+      
+      // Fetch GitHub user profile data to prefill onboarding
+      const githubUserResponse = await fetch('https://api.github.com/user', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const githubUser = await githubUserResponse.json();
+
+      // Store GitHub user info for onboarding prefill
+      await SecureStore.setItemAsync(
+        'github_profile',
+        JSON.stringify({
+          login: githubUser.login,
+          name: githubUser.name,
+          avatar_url: githubUser.avatar_url,
+          bio: githubUser.bio,
+        })
+      );
+
+      // auth state change listener in AppContext will handle navigation
+    } catch (err: any) {
+      setLoading(false);
+      console.error("GitHub sign-in error:", err);
+      Alert.alert("Authentication Failed", err.message || "Failed to sign in with GitHub");
     }
   };
 
-  const handleEmailSignIn = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert("Input Required", "Please enter both email and password.");
+  const initiateGitHubLogin = async () => {
+    if (!request) {
+      Alert.alert("Error", "GitHub authentication is not properly configured.");
       return;
     }
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (err: any) {
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-        try {
-          await createUserWithEmailAndPassword(auth, email, password);
-        } catch (createErr: any) {
-          setLoading(false);
-          Alert.alert("Sign Up Failed", createErr.message);
-        }
-      } else {
-        setLoading(false);
-        Alert.alert("Authentication Failed", err.message);
-      }
-    }
-  };
-
-  const handleGuest = async () => {
-    setLoading(true);
-    try {
-      await signInAnonymously(auth);
-    } catch (err: any) {
+      await promptAsync();
+    } catch (err) {
+      console.error("GitHub auth prompt failed:", err);
+      Alert.alert("GitHub Auth Error", "Failed to start GitHub login");
       setLoading(false);
-      Alert.alert("Guest Sign-In Failed", err.message);
     }
   };
 
-  const showEmail = () => {
-    setMode('email');
-    Animated.spring(slideAnim, { toValue: 1, tension: 60, friction: 10, useNativeDriver: true }).start();
-  };
+  const glowOpacity = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.8],
+  });
 
   return (
     <View style={styles.container}>
-      {/* Brand header */}
-      <View style={styles.brandSection}>
-        <View style={styles.logoCircle}>
-          <Text style={styles.logoText}>S</Text>
-        </View>
-        <Text style={styles.brandName}>Synq</Text>
-        <Text style={styles.brandTagline}>Build with people who{'\n'}actually click.</Text>
-      </View>
+      <LinearGradient
+        colors={['#06050C', '#0C0A1A', '#06050C']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradient}
+      />
 
-      {/* Auth card */}
-      <View style={styles.card}>
-        {loading ? (
-          <View style={styles.loadingArea}>
-            <ActivityIndicator size="large" color="#800020" />
-            <Text style={styles.loadingText}>Syncing Credentials...</Text>
+      <View style={styles.content}>
+        {/* Brand Section */}
+        <View style={styles.brandSection}>
+          <View style={styles.logoCircle}>
+            <Zap color="#00F0FF" size={40} />
           </View>
-        ) : (
-          <>
-            {/* Google SSO button */}
-            <TouchableOpacity style={styles.googleBtn} onPress={handleGoogleSignIn}>
-              <View style={styles.googleBtnInner}>
-                <Text style={styles.googleIcon}>G</Text>
-                <Text style={styles.googleText}>Continue with Google</Text>
-              </View>
-            </TouchableOpacity>
+          <Text style={styles.brandName}>Synq</Text>
+          <Text style={styles.brandTagline}>Built for hackers, builders, and creators.</Text>
+          <Text style={styles.brandSubtext}>Connect with developers. Build together. Ship faster.</Text>
+        </View>
 
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
+        {/* Card with GitHub button */}
+        <View style={styles.card}>
+          {loading ? (
+            <View style={styles.loadingArea}>
+              <ActivityIndicator size="large" color="#00F0FF" />
+              <Text style={styles.loadingText}>Connecting to GitHub...</Text>
             </View>
+          ) : gitHubConfigured ? (
+            <>
+              <Text style={styles.cardTitle}>Developer-Native Teamup</Text>
+              <Text style={styles.cardDescription}>
+                Authenticate with your GitHub account to join Synq. No passwords. No complexity.
+              </Text>
 
-            {mode === 'home' ? (
-              <TouchableOpacity style={styles.emailBtn} onPress={showEmail}>
-                <Mail color="#800020" size={18} style={{ marginRight: 10 }} />
-                <Text style={styles.emailBtnText}>Continue with Email</Text>
-              </TouchableOpacity>
-            ) : (
-              <Animated.View style={{ opacity: slideAnim, transform: [{ translateY: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
-                <TextInput
-                  placeholder="your@email.com"
-                  placeholderTextColor="#767676"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  value={email}
-                  onChangeText={setEmail}
-                  style={styles.emailInput}
-                />
-                <TextInput
-                  placeholder="password"
-                  placeholderTextColor="#767676"
-                  secureTextEntry
-                  autoCapitalize="none"
-                  value={password}
-                  onChangeText={setPassword}
-                  style={[styles.emailInput, { marginBottom: 16 }]}
-                />
-                <TouchableOpacity style={styles.submitEmailBtn} onPress={handleEmailSignIn}>
-                  <View style={styles.submitGrad}>
-                    <LogIn color="#FFFFFF" size={18} style={{ marginRight: 8 }} />
-                    <Text style={styles.submitText}>Sign In / Create Account</Text>
-                  </View>
-                </TouchableOpacity>
+              {/* Glow Button */}
+              <Animated.View style={[styles.glowContainer, { opacity: glowOpacity }]}>
+                <View style={styles.glowRing} />
               </Animated.View>
-            )}
 
-            {/* Guest entry */}
-            <TouchableOpacity style={styles.guestBtn} onPress={handleGuest}>
-              <Sparkles color="#767676" size={14} style={{ marginRight: 6 }} />
-              <Text style={styles.guestText}>Continue as Guest</Text>
-            </TouchableOpacity>
-          </>
-        )}
+              <TouchableOpacity
+                style={styles.githubBtn}
+                onPress={initiateGitHubLogin}
+                activeOpacity={0.85}
+                disabled={loading}
+              >
+                <LinearGradient
+                  colors={['#00F0FF', '#8A2BE2']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.githubBtnGradient}
+                >
+                  <GitBranch color="#06050C" size={20} style={{ marginRight: 12 }} />
+                  <Text style={styles.githubBtnText}>Continue with GitHub</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <View style={styles.divider} />
+
+              <View style={styles.featureList}>
+                <Text style={styles.featureItem}>✓ Instant setup with your GitHub identity</Text>
+                <Text style={styles.featureItem}>✓ Find developers who match your vibe</Text>
+                <Text style={styles.featureItem}>✓ Build high-velocity teams</Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <Text style={styles.cardTitle}>Setup Required</Text>
+              <Text style={styles.cardDescription}>
+                GitHub OAuth credentials are not configured. To enable GitHub authentication, please set the following environment variables:
+              </Text>
+              <View style={styles.envVarList}>
+                <Text style={styles.envVar}>EXPO_PUBLIC_GITHUB_CLIENT_ID</Text>
+                <Text style={styles.envVar}>EXPO_PUBLIC_GITHUB_CLIENT_SECRET</Text>
+              </View>
+              <Text style={styles.configNote}>
+                Create a GitHub OAuth App at{' '}
+                <Text style={styles.configLink}>github.com/settings/developers</Text> and add the credentials to your .env file.
+              </Text>
+            </>
+          )}
+        </View>
+
+        {/* Footer */}
+        <Text style={styles.footer}>
+          By signing in, you agree to our Terms and Privacy Policy
+        </Text>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9F6F0', paddingHorizontal: 24 },
-  brandSection: { alignItems: 'center', marginBottom: 48, position: 'relative' },
-  logoCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#800020', borderStyle: 'dotted', alignItems: 'center', justifyContent: 'center', marginBottom: 16, shadowColor: '#800020', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 },
-  logoText: { fontSize: 36, fontFamily: 'serif', color: '#800020', fontWeight: '800' },
-  brandName: { fontSize: 50, fontFamily: 'serif', fontWeight: '900', color: '#800020', letterSpacing: -1 },
-  brandTagline: { fontSize: 18, color: '#2C2C2C', fontStyle: 'italic', textAlign: 'center', lineHeight: 26, marginTop: 8, fontWeight: '600' },
-  card: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted', padding: 28, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 5 },
-  loadingArea: { alignItems: 'center', paddingVertical: 20 },
-  loadingText: { color: '#800020', marginTop: 14, fontWeight: '700', fontSize: 14, fontFamily: 'serif' },
-  googleBtn: { borderRadius: 8, overflow: 'hidden', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E0E0E0', marginBottom: 20 },
-  googleBtnInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 14 },
-  googleIcon: { fontSize: 18, fontWeight: '900', color: '#4285F4', marginRight: 10 },
-  googleText: { fontSize: 15, fontWeight: '700', color: '#2C2C2C' },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  dividerLine: { flex: 1, height: 1, borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted', backgroundColor: 'transparent' },
-  dividerText: { color: '#767676', fontSize: 12, fontWeight: '600', marginHorizontal: 12, fontStyle: 'italic' },
-  emailBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#800020', borderRadius: 8, padding: 14, marginBottom: 16 },
-  emailBtnText: { color: '#800020', fontWeight: '700', fontSize: 15 },
-  emailInput: { backgroundColor: '#F9F6F0', borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8, padding: 14, color: '#2C2C2C', fontSize: 15, marginBottom: 12 },
-  submitEmailBtn: { borderRadius: 8, overflow: 'hidden', marginBottom: 16, backgroundColor: '#800020' },
-  submitGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 16 },
-  submitText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15, fontFamily: 'serif', letterSpacing: 0.5 },
-  guestBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
-  guestText: { color: '#767676', fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' },
+  container: {
+    flex: 1,
+    backgroundColor: '#06050C',
+  },
+  gradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  content: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 40,
+  },
+  brandSection: {
+    alignItems: 'center',
+    marginBottom: 48,
+    zIndex: 2,
+  },
+  logoCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(0, 240, 255, 0.1)',
+    borderWidth: 2,
+    borderColor: '#00F0FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    shadowColor: '#00F0FF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 15,
+  },
+  brandName: {
+    fontSize: 56,
+    fontWeight: '900',
+    color: '#00F0FF',
+    letterSpacing: -2,
+    marginBottom: 8,
+  },
+  brandTagline: {
+    fontSize: 18,
+    color: '#8A2BE2',
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 6,
+    letterSpacing: 0.5,
+  },
+  brandSubtext: {
+    fontSize: 14,
+    color: '#767676',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginTop: 8,
+  },
+  card: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: 'rgba(11, 14, 27, 0.6)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.2)',
+    padding: 32,
+    shadowColor: '#00F0FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 5,
+    zIndex: 2,
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#00F0FF',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  cardDescription: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 28,
+  },
+  glowContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  glowRing: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 2,
+    borderColor: '#00F0FF',
+    backgroundColor: 'rgba(0, 240, 255, 0.05)',
+  },
+  githubBtn: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginBottom: 20,
+    shadowColor: '#00F0FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  githubBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+  },
+  githubBtnText: {
+    color: '#06050C',
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  loadingArea: {
+    alignItems: 'center',
+    paddingVertical: 30,
+  },
+  loadingText: {
+    color: '#00F0FF',
+    marginTop: 16,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(0, 240, 255, 0.1)',
+    marginVertical: 20,
+  },
+  featureList: {
+    gap: 10,
+  },
+  featureItem: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  envVarList: {
+    marginVertical: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(0, 240, 255, 0.05)',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#00F0FF',
+    gap: 8,
+  },
+  envVar: {
+    fontSize: 12,
+    color: '#00F0FF',
+    fontWeight: '600',
+    fontFamily: 'monospace',
+  },
+  configNote: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    lineHeight: 18,
+    marginTop: 12,
+  },
+  configLink: {
+    color: '#00F0FF',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 16,
+    fontSize: 11,
+    color: '#4B5563',
+    textAlign: 'center',
+    paddingHorizontal: 24,
+  },
 });

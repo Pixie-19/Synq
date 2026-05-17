@@ -2,7 +2,7 @@
   "expo": {
     "name": "Synq",
     "slug": "Synq",
-    "scheme": "synq-auth",
+    "scheme": "synq",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -31,7 +31,6 @@
     },
     "plugins": [
       "expo-web-browser",
-      "@react-native-google-signin/google-signin",
       [
         "expo-image-picker",
         {

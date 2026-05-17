@@ -773,7 +773,7 @@ const styles = StyleSheet.create({
   socialInput: { flex: 1, color: '#2C2C2C', fontSize: 14, fontWeight: '600', paddingVertical: 10 },
   
   saveButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#800020', borderRadius: 14, paddingVertical: 14, marginTop: 4 },
-  saveButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '#800' },
+  saveButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
   signOutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#FFFFFF', borderColor: '#800020', borderStyle: 'dotted', borderWidth: 1, borderRadius: 14, paddingVertical: 14, marginTop: 12 },
   signOutText: { color: '#800020', fontSize: 15, fontWeight: '800' },
   secondaryEditButton: { alignItems: 'center', paddingVertical: 12 },

@@ -2,7 +2,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   getAuth,
   initializeAuth,
-  GoogleAuthProvider,
+  GithubAuthProvider,
   signInWithCredential,
   User as FirebaseUser
 } from 'firebase/auth';
@@ -11,10 +11,10 @@ import { getStorage } from 'firebase/storage';
 import { getReactNativePersistence } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { getFirestore } from 'firebase/firestore';
 
 // Firebase configuration keys (loaded via environment variables)
 const firebaseConfig = {
-  // Clean, secure, and will alert you instantly if your .env isn't loading!
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
@@ -23,17 +23,14 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
-
 // Initialize Firebase App
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Initialize Firestore with persistent local cache for better offline support
-const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager(), // Useful for Web and consistent for Native
-  })
-});
+// Initialize Firestore
+// For Expo React Native: use default configuration (in-memory cache)
+// DO NOT use browser-specific APIs like persistentLocalCache or initializeFirestore with cache options
+// These are NOT supported in React Native and cause IndexedDB errors
+const db = getFirestore(app);
 
 // Initialize Firebase Storage for profile images
 const storage = getStorage(app);
@@ -54,14 +51,14 @@ if (isAuthInitialized) {
   }
 }
 
-export { app, auth, db, storage };
+export { app, auth, db, storage, GithubAuthProvider };
 
 /**
- * Handles signing in with Google ID token inside Firebase
- * @param idToken The token obtained from Google Sign-In
+ * Handles signing in with GitHub access token inside Firebase
+ * @param accessToken The token obtained from GitHub OAuth
  */
-export const signInWithGoogleToken = async (idToken: string): Promise<FirebaseUser> => {
-  const credential = GoogleAuthProvider.credential(idToken);
+export const signInWithGitHubToken = async (accessToken: string): Promise<FirebaseUser> => {
+  const credential = GithubAuthProvider.credential(accessToken);
   const userCredential = await signInWithCredential(auth, credential);
   return userCredential.user;
 };

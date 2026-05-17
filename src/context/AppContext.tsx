@@ -17,6 +17,7 @@ import {
   getDocs
 } from 'firebase/firestore';
 import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
+import * as SecureStore from 'expo-secure-store';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -475,13 +476,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setIsAuthLoading(true);
       setIsAuthenticated(!!firebaseUser);
+      
       if (firebaseUser) {
         try {
           const userDocRef = doc(db, 'users', firebaseUser.uid);
           
           // Use onSnapshot for real-time updates and better offline resilience
-          const unsubscribeProfile = onSnapshot(userDocRef, (userSnap) => {
+          const unsubscribeProfile = onSnapshot(userDocRef, async (userSnap) => {
             if (userSnap.exists()) {
+              // User has completed onboarding before
               const fullProfile = userSnap.data() as UserProfile;
               setUserProfileState({
                 name: fullProfile.name,
@@ -510,13 +513,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               setUserArchetype(fullProfile.archetype);
               setIsOnboarded(fullProfile.onboardingComplete ?? true);
             } else {
+              // First-time user: prefill with GitHub data
+              try {
+                const githubProfileJson = await SecureStore.getItemAsync('github_profile');
+                if (githubProfileJson) {
+                  const githubProfile = JSON.parse(githubProfileJson);
+                  
+                  // Pre-fill onboarding form with GitHub data
+                  setUserProfileState({
+                    name: githubProfile.name || githubProfile.login || '',
+                    username: githubProfile.login || '',
+                    email: firebaseUser.email || '',
+                    bio: githubProfile.bio || '',
+                    college: '',
+                    skills: [],
+                    preferredRole: 'Fullstack Developer',
+                    techStack: [],
+                    schedule: 'Flexible',
+                    commStyle: 'Collaborative & Gentle',
+                    teamSizePreference: '3-4 members',
+                    workEnergy: 'High-Speed Sprint',
+                    snack: 'Coffee',
+                    toxicHabit: 'Over-engineering',
+                    musicVibe: 'Lofi Focus',
+                    shipVsPolish: 'Ship Fast',
+                    avatar: githubProfile.avatar_url || '',
+                    github: githubProfile.login || '',
+                    twitter: '',
+                    linkedin: '',
+                    projectInterests: [],
+                  } as any);
+                }
+              } catch (err) {
+                console.warn("Failed to load GitHub profile for prefill:", err);
+              }
+              
               setIsOnboarded(false);
             }
             setIsAuthLoading(false);
           }, (error) => {
             console.error("Firestore profile snapshot error:", error);
-            // Don't log out on snapshot error, just log it. 
+            // Don't log out on snapshot error, just log it.
             // Local cache will still serve data if available.
+            setIsAuthLoading(false);
           });
 
           // Clean up the inner listener if the auth state changes
@@ -758,18 +797,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const finishOnboarding = async () => {
     if (!userProfile) return;
-    const avatars = [
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
-      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80',
-      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
-      'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=400&q=80'
-    ];
-    const randomAvatar = avatars[Math.floor(Math.random() * avatars.length)];
 
     if (!auth.currentUser) {
       // Local fallback mode onboarding completion
-      setUserProfileState(prev => prev ? { ...prev, avatar: randomAvatar } as any : prev);
       setIsOnboarded(true);
       return;
     }
@@ -781,7 +811,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       username: userProfile.username || userProfile.name.toLowerCase().replace(/\s+/g, ''),
       email: auth.currentUser?.email || userProfile.email || '',
       bio: userProfile.bio || `${userProfile.preferredRole} ready to build!`,
-      avatar: randomAvatar,
+      avatar: userProfile.avatar || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80',
       college: userProfile.college,
       role: userProfile.preferredRole,
       preferredRole: userProfile.preferredRole,
@@ -1200,6 +1230,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsAuthLoading(true);
     try {
       await firebaseSignOut(auth);
+      
+      // Clear GitHub data from secure storage
+      await SecureStore.deleteItemAsync('github_access_token').catch(() => {});
+      await SecureStore.deleteItemAsync('github_profile').catch(() => {});
+      
       setIsOnboarded(false);
       setUserProfileState(null);
       setUserArchetype(null);
