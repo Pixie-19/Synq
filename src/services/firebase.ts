@@ -27,9 +27,9 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 // Initialize Firestore
-// For Expo React Native: use default configuration (in-memory cache)
+// For Expo React Native: use default configuration.
 // DO NOT use browser-specific APIs like persistentLocalCache or initializeFirestore with cache options
-// These are NOT supported in React Native and cause IndexedDB errors
+// in React Native unless you specifically include the necessary polyfills.
 const db = getFirestore(app);
 
 // Initialize Firebase Storage for profile images

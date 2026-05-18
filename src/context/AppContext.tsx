@@ -631,9 +631,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         });
         setDiscoverProfiles(loaded);
+      }, (error) => {
+        console.error("Discovery users listener error:", error);
       });
       
       return () => unsubUsers();
+    }, (error) => {
+      console.error("Discovery swipes listener error:", error);
     });
 
     return () => unsubSwipes();
@@ -649,20 +653,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const q = query(collection(db, 'matches'), where('users', 'array-contains', myUid));
     
     const unsubscribe = onSnapshot(q, async (snapshot) => {
-      const list: UserProfile[] = [];
-      for (const docSnap of snapshot.docs) {
-        const matchData = docSnap.data();
-        const otherUid = matchData.users.find((uid: string) => uid !== myUid);
-        if (otherUid) {
-          const uDoc = await getDoc(doc(db, 'users', otherUid));
-          if (uDoc.exists()) {
-            const uProfile = uDoc.data() as UserProfile;
-            uProfile.compatibilityScore = calculateScore(userProfile, uProfile);
-            list.push({ ...uProfile, id: otherUid });
+      try {
+        const list: UserProfile[] = [];
+        // Sequential getDoc is fine here as matches are usually few. 
+        // For production scale, consider denormalizing otherUid into match doc
+        for (const docSnap of snapshot.docs) {
+          const matchData = docSnap.data();
+          const otherUid = matchData.users.find((uid: string) => uid !== myUid);
+          if (otherUid) {
+            const uDoc = await getDoc(doc(db, 'users', otherUid));
+            if (uDoc.exists()) {
+              const uProfile = uDoc.data() as UserProfile;
+              uProfile.compatibilityScore = calculateScore(userProfile, uProfile);
+              list.push({ ...uProfile, id: otherUid });
+            }
           }
         }
+        setMatchedProfiles(list);
+      } catch (err) {
+        console.error("Error processing matched profiles:", err);
       }
-      setMatchedProfiles(list);
+    }, (error) => {
+      console.error("Match list sync error:", error);
     });
 
     return () => unsubscribe();
@@ -737,7 +749,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               id: `note_${idx}`,
               senderId: note.senderId,
               text: note.text,
-              timestamp: new Date(),
+              timestamp: note.timestamp?.toDate() || new Date(),
               isSystem: note.isSystem || false
             })));
           }
@@ -748,6 +760,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setVoiceRoomState(null);
         setIsSprintActive(false);
       }
+    }, (error) => {
+      console.error("Voice room sync error:", error);
     });
 
     return () => unsubscribe();

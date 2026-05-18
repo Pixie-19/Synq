@@ -33,7 +33,14 @@ import {
   Server,
   Coffee,
 } from 'lucide-react-native';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  doc,
+  updateDoc
+} from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
 import { GlassCard } from '../components/GlassCard';
@@ -244,15 +251,53 @@ export const ProfileScreen: React.FC<Props> = () => {
   };
 
   const uploadAvatar = async (uri: string) => {
-    const uid = auth.currentUser?.uid;
-    if (!uid) return;
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    const uploadRef = ref(storage, `profile-photos/${uid}/${Date.now()}.jpg`);
-    await uploadBytes(uploadRef, blob, { contentType: 'image/jpeg' });
-    const downloadUrl = await getDownloadURL(uploadRef);
-    setAvatarUri(downloadUrl);
-    await updateProfile({ avatar: downloadUrl });
+    try {
+      setUploadingPhoto(true);
+
+      // EXPO REAL-TIME BLOB FIX: 
+      // In React Native/Expo, fetch(uri).blob() may fail or return an incompatible blob structure 
+      // depending on the version and platform. XMLHttpRequest is the most reliable way to 
+      // convert a local file URI (file://) to a binary Blob for Firebase Storage.
+      const blob: Blob = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.onload = function () {
+          resolve(xhr.response);
+        };
+        xhr.onerror = function (e) {
+          console.error("XMLHttpRequest failed during blob conversion:", e);
+          reject(new TypeError("Network request failed"));
+        };
+        xhr.responseType = "blob";
+        xhr.open("GET", uri, true);
+        xhr.send(null);
+      });
+
+      const storageRef = ref(
+        storage,
+        `avatars/${auth.currentUser?.uid}.jpg`
+      );
+
+      await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+
+      const downloadURL = await getDownloadURL(storageRef);
+
+      await updateDoc(doc(db, 'users', auth.currentUser!.uid), {
+        avatar: downloadURL,
+        updatedAt: new Date().toISOString(),
+      });
+
+      setAvatarUri(downloadURL);
+      Alert.alert('Success', 'Profile photo updated!');
+
+    } catch (error: any) {
+      console.error('Photo upload error:', error);
+      Alert.alert(
+        'Photo update failed',
+        error?.message || 'Unable to update your profile photo.'
+      );
+    } finally {
+      setUploadingPhoto(false);
+    }
   };
 
   const openImagePicker = async (source: 'camera' | 'library') => {
@@ -288,8 +333,7 @@ export const ProfileScreen: React.FC<Props> = () => {
       setUploadingPhoto(true);
       await uploadAvatar(result.assets[0].uri);
     } catch (error: any) {
-      Alert.alert('Photo update failed', error?.message || 'Unable to update your profile photo.');
-    } finally {
+      console.error("Image Picker Error:", error);
       setUploadingPhoto(false);
     }
   };

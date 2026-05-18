@@ -23,8 +23,8 @@ export const ArchetypeScreen: React.FC<Props> = () => {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(glowAnim, { toValue: 1.0, duration: 2500, useNativeDriver: true }),
-        Animated.timing(glowAnim, { toValue: 0.4, duration: 2500, useNativeDriver: true }),
+        Animated.timing(glowAnim, { toValue: 1.0, duration: 2500, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(glowAnim, { toValue: 0.4, duration: 2500, useNativeDriver: Platform.OS !== 'web' }),
       ])
     ).start();
 
@@ -32,11 +32,11 @@ export const ArchetypeScreen: React.FC<Props> = () => {
       Animated.timing(rotateAnim, {
         toValue: 1,
         duration: 10000,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       })
     ).start();
 
-    Animated.timing(revealAnim, { toValue: 1, duration: 1500, useNativeDriver: true }).start();
+    Animated.timing(revealAnim, { toValue: 1, duration: 1500, useNativeDriver: Platform.OS !== 'web' }).start();
   }, [glowAnim, rotateAnim, revealAnim]);
 
   if (!userArchetype) return null;
@@ -157,8 +157,53 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 28 },
   headerSubtitle: { color: '#800020', fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 2, fontFamily: 'serif' },
   
-  archetypeCard: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted', padding: 32, alignItems: 'center', marginBottom: 32, shadowColor: '#800020', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.1, shadowRadius: 24, elevation: 8 },
-  iconBadge: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#F9F6F0', borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dotted', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 6, marginBottom: 24 },
+  archetypeCard: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderStyle: 'dotted',
+    padding: 32,
+    alignItems: 'center',
+    marginBottom: 32,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 12px 24px rgba(128, 0, 32, 0.1)'
+      },
+      default: {
+        shadowColor: '#800020',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.1,
+        shadowRadius: 24,
+        elevation: 8
+      }
+    })
+  },
+  iconBadge: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#F9F6F0',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderStyle: 'dotted',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 6px 10px rgba(0, 0, 0, 0.05)'
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 6
+      }
+    })
+  },
   
   archetypePrefix: { color: '#767676', fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6 },
   archetypeName: { fontSize: 34, fontFamily: 'serif', fontWeight: '800', letterSpacing: -0.5, textAlign: 'center', marginBottom: 8 },
@@ -180,7 +225,24 @@ const styles = StyleSheet.create({
   bullet: { fontSize: 14, marginRight: 8, color: '#800020' },
   strengthText: { color: '#767676', fontSize: 14, fontWeight: '500' },
   
-  continueButton: { width: '100%', borderRadius: 8, overflow: 'hidden', backgroundColor: '#800020', shadowColor: '#800020', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16, elevation: 8 },
+  continueButton: {
+    width: '100%',
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#800020',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 8px 16px rgba(128, 0, 32, 0.25)'
+      },
+      default: {
+        shadowColor: '#800020',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.25,
+        shadowRadius: 16,
+        elevation: 8
+      }
+    })
+  },
   solidButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 18, gap: 12 },
   continueText: { color: '#FFFFFF', fontWeight: '800', fontSize: 16, letterSpacing: 0.5, fontFamily: 'serif' },
 });

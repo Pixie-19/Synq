@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { StyleSheet, View, Animated, Dimensions } from 'react-native';
+import { StyleSheet, View, Animated, Dimensions, Platform } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -28,12 +28,12 @@ export const Confetti: React.FC<ConfettiProps> = ({ active }) => {
           Animated.timing(p.y, {
             toValue: height + 20,
             duration: Math.random() * 2500 + 1500,
-            useNativeDriver: true
+            useNativeDriver: Platform.OS !== 'web'
           }),
           Animated.timing(p.angle, {
             toValue: Math.random() * 720 + 360,
             duration: Math.random() * 2500 + 1500,
-            useNativeDriver: true
+            useNativeDriver: Platform.OS !== 'web'
           })
         ]);
       });
@@ -45,7 +45,7 @@ export const Confetti: React.FC<ConfettiProps> = ({ active }) => {
   if (!active) return null;
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+    <View style={[StyleSheet.absoluteFill, { pointerEvents: 'none' }]}>
       {particles.map((p, index) => {
         const rotate = p.angle.interpolate({
           inputRange: [0, 360],
