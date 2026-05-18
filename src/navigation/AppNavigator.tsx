@@ -95,6 +95,7 @@ function MainTabs() {
         tabBarActiveTintColor: '#800020',
         tabBarInactiveTintColor: '#767676',
         tabBarLabelStyle: styles.tabLabel,
+        tabBarHideOnKeyboard: true, // Automatically hides the tab bar when keyboard opens
         tabBarIcon: ({ color, focused }) => {
           const s = focused ? 22 : 20;
           switch (route.name) {
