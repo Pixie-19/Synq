@@ -7,11 +7,18 @@ import * as WebBrowser from 'expo-web-browser';
 import * as SecureStore from 'expo-secure-store';
 import { makeRedirectUri } from 'expo-auth-session';
 import { useAuthRequest } from 'expo-auth-session';
+import * as AuthSession from 'expo-auth-session';
 import { auth, signInWithGitHubToken } from '../services/firebase';
 
 WebBrowser.maybeCompleteAuthSession();
 
 type Props = StackScreenProps<any, 'Auth'>;
+
+// Define the redirect URI explicitly to ensure consistency
+const REDIRECT_URI = makeRedirectUri({
+  scheme: 'synq',
+  path: 'github-callback',
+});
 
 export const AuthScreen: React.FC<Props> = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
@@ -24,27 +31,19 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
   );
 
   // Configure GitHub OAuth
+  // Note: For native mobile, we MUST use the authorization code flow + exchanging for token
+  // GitHub doesn't directly support the Implicit flow for mobile apps easily without a proxy
+  // but AuthSession handling with exchange is standard.
   const [request, response, promptAsync] = useAuthRequest(
-    gitHubConfigured ? {
+    {
       clientId: process.env.EXPO_PUBLIC_GITHUB_CLIENT_ID || '',
-      clientSecret: process.env.EXPO_PUBLIC_GITHUB_CLIENT_SECRET || '',
       scopes: ['user:email', 'read:user'],
-      redirectUri: makeRedirectUri({
-        scheme: 'synq',
-        path: 'github-callback',
-      }),
-    } : {
-      clientId: 'demo',
-      clientSecret: 'demo',
-      scopes: ['user:email', 'read:user'],
-      redirectUri: makeRedirectUri({
-        scheme: 'synq',
-        path: 'github-callback',
-      }),
+      redirectUri: REDIRECT_URI,
     },
     {
       authorizationEndpoint: 'https://github.com/login/oauth/authorize',
       tokenEndpoint: 'https://github.com/login/oauth/access_token',
+      revocationEndpoint: `https://github.com/settings/connections/applications/${process.env.EXPO_PUBLIC_GITHUB_CLIENT_ID}`,
     }
   );
 
@@ -68,32 +67,94 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
 
   // Handle GitHub OAuth Response
   useEffect(() => {
-    if (response?.type === 'success') {
-      const { access_token } = response.params;
-      if (access_token) {
-        setLoading(true);
-        handleGitHubSignIn(access_token);
+    const handleResponse = async () => {
+      if (!response) return;
+
+      console.log("GitHub OAuth Response received:", response.type);
+
+      if (response.type === 'success') {
+        const { code } = response.params;
+        
+        if (code) {
+          setLoading(true);
+          console.log("Authorization code obtained, exchanging for access token...");
+          // Extract the code_verifier from the original request object
+          const codeVerifier = request?.codeVerifier;
+          await exchangeCodeForToken(code, codeVerifier);
+        }
+      } else if (response.type === 'error' || response.type === 'cancel' || response.type === 'dismiss') {
+        console.log("GitHub OAuth non-success status:", response.type);
+        setLoading(false);
       }
-    } else if (response?.type === 'error') {
-      console.warn("GitHub OAuth error:", response.error);
-      Alert.alert("GitHub Auth Error", "Failed to authenticate with GitHub. Please try again.");
+    };
+
+    handleResponse();
+  }, [response]);
+
+  /**
+   * GitHub requires a backend or a direct fetch to exchange code for token.
+   * Since we are in a hackathon/client-side context, we fetch direct if allowed 
+   * or use the client secret.
+   */
+  const exchangeCodeForToken = async (code: string, codeVerifier?: string) => {
+    try {
+      const clientSecret = process.env.EXPO_PUBLIC_GITHUB_CLIENT_SECRET;
+      const clientId = process.env.EXPO_PUBLIC_GITHUB_CLIENT_ID;
+
+      console.log("Exchanging code for token with ClientID:", clientId);
+      if (codeVerifier) {
+        console.log("Including code_verifier in exchange request.");
+      }
+
+      const res = await fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          client_id: clientId,
+          client_secret: clientSecret,
+          code,
+          redirect_uri: REDIRECT_URI,
+          code_verifier: codeVerifier, // PKCE requirement
+        }),
+      });
+
+      const data = await res.json();
+      console.log("Token exchange data keys:", Object.keys(data));
+
+      if (data.access_token) {
+        await handleGitHubSignIn(data.access_token);
+      } else {
+        throw new Error(data.error_description || data.error || "Failed to exchange code for token");
+      }
+    } catch (err: any) {
+      console.error("Token exchange error:", err);
+      Alert.alert("Auth Error", err.message || "Failed to exchange GitHub code");
       setLoading(false);
     }
-  }, [response]);
+  };
 
   const handleGitHubSignIn = async (accessToken: string) => {
     try {
+      console.log("Entering Firebase Sign-In with GitHub token...");
+      
       // Store the access token securely
       await SecureStore.setItemAsync('github_access_token', accessToken);
 
       // Sign in with Firebase using the GitHub token
+      // This is WHERE the actual Firebase Authentication happens
       const user = await signInWithGitHubToken(accessToken);
+      console.log("Firebase Auth Success! User UID:", user.uid);
       
       // Fetch GitHub user profile data to prefill onboarding
       const githubUserResponse = await fetch('https://api.github.com/user', {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       const githubUser = await githubUserResponse.json();
+
+      console.log("GitHub Profile fetched:", githubUser.login);
 
       // Store GitHub user info for onboarding prefill
       await SecureStore.setItemAsync(
@@ -106,22 +167,30 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
         })
       );
 
-      // auth state change listener in AppContext will handle navigation
+      // Note: We don't set loading to false here immediately because 
+      // AppContext's onAuthStateChanged will detect the user and 
+      // we want the root navigator to switch screens while we are still in "auth loading"
+      // But we must ensure if it fails, we reset
     } catch (err: any) {
       setLoading(false);
-      console.error("GitHub sign-in error:", err);
+      console.error("Firebase GitHub sign-in error:", err);
       Alert.alert("Authentication Failed", err.message || "Failed to sign in with GitHub");
     }
   };
 
   const initiateGitHubLogin = async () => {
-    if (!request) {
-      Alert.alert("Error", "GitHub authentication is not properly configured.");
+    if (!gitHubConfigured) {
+      Alert.alert("Config Error", "GitHub Client ID/Secret missing in .env");
       return;
     }
+    
     setLoading(true);
     try {
-      await promptAsync();
+      console.log("Opening GitHub Auth Browser...");
+      const result = await promptAsync();
+      if (result.type !== 'success') {
+        setLoading(false);
+      }
     } catch (err) {
       console.error("GitHub auth prompt failed:", err);
       Alert.alert("GitHub Auth Error", "Failed to start GitHub login");

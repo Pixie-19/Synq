@@ -473,16 +473,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // ── Auth Observer ─────────────────────────────────────────────────────────
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setIsAuthLoading(true);
+    let unsubscribeProfile: (() => void) | undefined;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log("Auth state changed:", !!firebaseUser);
       setIsAuthenticated(!!firebaseUser);
       
+      // Cleanup previous profile listener if it exists
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+        unsubscribeProfile = undefined;
+      }
+
       if (firebaseUser) {
+        setIsAuthLoading(true);
         try {
           const userDocRef = doc(db, 'users', firebaseUser.uid);
           
           // Use onSnapshot for real-time updates and better offline resilience
-          const unsubscribeProfile = onSnapshot(userDocRef, async (userSnap) => {
+          unsubscribeProfile = onSnapshot(userDocRef, async (userSnap) => {
+            console.log("Profile snapshot received, exists:", userSnap.exists());
             if (userSnap.exists()) {
               // User has completed onboarding before
               const fullProfile = userSnap.data() as UserProfile;
@@ -518,6 +528,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 const githubProfileJson = await SecureStore.getItemAsync('github_profile');
                 if (githubProfileJson) {
                   const githubProfile = JSON.parse(githubProfileJson);
+                  console.log("Prefilling from GitHub profile:", githubProfile.login);
                   
                   // Pre-fill onboarding form with GitHub data
                   setUserProfileState({
@@ -553,13 +564,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setIsAuthLoading(false);
           }, (error) => {
             console.error("Firestore profile snapshot error:", error);
-            // Don't log out on snapshot error, just log it.
-            // Local cache will still serve data if available.
             setIsAuthLoading(false);
           });
-
-          // Clean up the inner listener if the auth state changes
-          return () => unsubscribeProfile();
         } catch (error: any) {
           console.error("Firestore setup error:", error);
           setIsAuthLoading(false);
@@ -572,33 +578,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeProfile) unsubscribeProfile();
+    };
   }, []);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   // ── Discover Profiles Sync ────────────────────────────────────────────────
   useEffect(() => {
