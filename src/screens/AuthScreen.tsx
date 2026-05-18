@@ -205,18 +205,11 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#06050C', '#0C0A1A', '#06050C']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.gradient}
-      />
-
       <View style={styles.content}>
         {/* Brand Section */}
         <View style={styles.brandSection}>
           <View style={styles.logoCircle}>
-            <Zap color="#00F0FF" size={40} />
+            <Zap color="#800020" size={40} />
           </View>
           <Text style={styles.brandName}>Synq</Text>
           <Text style={styles.brandTagline}>Built for hackers, builders, and creators.</Text>
@@ -227,7 +220,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.card}>
           {loading ? (
             <View style={styles.loadingArea}>
-              <ActivityIndicator size="large" color="#00F0FF" />
+              <ActivityIndicator size="large" color="#800020" />
               <Text style={styles.loadingText}>Connecting to GitHub...</Text>
             </View>
           ) : gitHubConfigured ? (
@@ -248,15 +241,10 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
                 activeOpacity={0.85}
                 disabled={loading}
               >
-                <LinearGradient
-                  colors={['#00F0FF', '#8A2BE2']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.githubBtnGradient}
-                >
-                  <GitBranch color="#06050C" size={20} style={{ marginRight: 12 }} />
+                <View style={styles.githubBtnGradient}>
+                  <GitBranch color="#F9F6F0" size={20} style={{ marginRight: 12 }} />
                   <Text style={styles.githubBtnText}>Continue with GitHub</Text>
-                </LinearGradient>
+                </View>
               </TouchableOpacity>
 
               <View style={styles.divider} />
@@ -297,10 +285,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#06050C',
-  },
-  gradient: {
-    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#F9F6F0',
   },
   content: {
     flex: 1,
@@ -318,27 +303,25 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(0, 240, 255, 0.1)',
+    backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: '#00F0FF',
+    borderColor: '#E0E0E0',
+    borderStyle: 'dotted',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
-    shadowColor: '#00F0FF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 15,
   },
   brandName: {
     fontSize: 56,
+    fontFamily: 'serif',
     fontWeight: '900',
-    color: '#00F0FF',
+    color: '#800020',
     letterSpacing: -2,
     marginBottom: 8,
   },
   brandTagline: {
     fontSize: 18,
+    fontFamily: 'serif',
     color: '#8A2BE2',
     fontWeight: '700',
     textAlign: 'center',
@@ -347,6 +330,7 @@ const styles = StyleSheet.create({
   },
   brandSubtext: {
     fontSize: 14,
+    fontFamily: 'serif',
     color: '#767676',
     textAlign: 'center',
     lineHeight: 20,
@@ -355,28 +339,30 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 400,
-    backgroundColor: 'rgba(11, 14, 27, 0.6)',
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(0, 240, 255, 0.2)',
+    borderColor: '#EFEFEF',
     padding: 32,
-    shadowColor: '#00F0FF',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 5,
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
     zIndex: 2,
   },
   cardTitle: {
     fontSize: 20,
+    fontFamily: 'serif',
     fontWeight: '900',
-    color: '#00F0FF',
+    color: '#333333',
     marginBottom: 8,
     textAlign: 'center',
   },
   cardDescription: {
     fontSize: 13,
-    color: '#9CA3AF',
+    fontFamily: 'serif',
+    color: '#767676',
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 28,
@@ -390,18 +376,20 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 2,
-    borderColor: '#00F0FF',
-    backgroundColor: 'rgba(0, 240, 255, 0.05)',
+    borderColor: '#800020',
+    backgroundColor: 'transparent',
+    borderStyle: 'dotted',
   },
   githubBtn: {
     borderRadius: 14,
     overflow: 'hidden',
     marginBottom: 20,
-    shadowColor: '#00F0FF',
+    backgroundColor: '#800020',
+    shadowColor: '#800020',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   githubBtnGradient: {
     flexDirection: 'row',
@@ -411,7 +399,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   githubBtnText: {
-    color: '#06050C',
+    color: '#F9F6F0',
     fontSize: 16,
     fontWeight: '900',
     letterSpacing: 0.5,
@@ -421,14 +409,15 @@ const styles = StyleSheet.create({
     paddingVertical: 30,
   },
   loadingText: {
-    color: '#00F0FF',
+    color: '#800020',
+    fontFamily: 'serif',
     marginTop: 16,
     fontWeight: '700',
     fontSize: 14,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(0, 240, 255, 0.1)',
+    backgroundColor: '#EFEFEF',
     marginVertical: 20,
   },
   featureList: {
@@ -436,7 +425,8 @@ const styles = StyleSheet.create({
   },
   featureItem: {
     fontSize: 12,
-    color: '#9CA3AF',
+    fontFamily: 'serif',
+    color: '#767676',
     lineHeight: 18,
     fontWeight: '500',
   },
@@ -444,15 +434,15 @@ const styles = StyleSheet.create({
     marginVertical: 16,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    backgroundColor: 'rgba(0, 240, 255, 0.05)',
+    backgroundColor: '#F9F6F0',
     borderRadius: 8,
     borderLeftWidth: 3,
-    borderLeftColor: '#00F0FF',
+    borderLeftColor: '#800020',
     gap: 8,
   },
   envVar: {
     fontSize: 12,
-    color: '#00F0FF',
+    color: '#800020',
     fontWeight: '600',
     fontFamily: 'monospace',
   },
